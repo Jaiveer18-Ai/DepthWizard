@@ -145,7 +145,7 @@ def create_depth_visualization(depth: np.ndarray, colormap: str = "inferno") -> 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="DepthWizard Member 1 — Monocular Relative Depth Inference"
+        description="DepthWizard Member 1 -- Monocular Relative Depth Inference"
     )
     parser.add_argument(
         "--input",
