@@ -1,13 +1,13 @@
 import React from 'react';
-import { ArrowRight, RotateCcw, Box, Compass, Sparkles } from 'lucide-react';
+import { ArrowRight, Box, Compass } from 'lucide-react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '../ThreeControls';
 import * as THREE from 'three';
 
 function PreviewTerrainMesh() {
-  const { geometry, colors } = React.useMemo(() => {
-    const size = 32;
-    const segments = 100;
+  const { geometry } = React.useMemo(() => {
+    const size = 34;
+    const segments = 110;
     const geo = new THREE.PlaneGeometry(size, size, segments, segments);
     geo.rotateX(-Math.PI / 2);
 
@@ -30,7 +30,6 @@ function PreviewTerrainMesh() {
       const normY = Math.max(0, Math.min(1, y / 7.0));
       const cIndex = i * 3;
 
-      // Color scheme: Valley to Forest to Rocky Peak to Snow
       if (normY < 0.25) {
         vertexColors[cIndex] = 0.12;
         vertexColors[cIndex + 1] = 0.25;
@@ -52,7 +51,7 @@ function PreviewTerrainMesh() {
 
     geo.setAttribute('color', new THREE.BufferAttribute(vertexColors, 3));
     geo.computeVertexNormals();
-    return { geometry: geo, colors: vertexColors };
+    return { geometry: geo };
   }, []);
 
   return (
@@ -74,19 +73,19 @@ export const TerrainPreviewSection: React.FC = () => {
   };
 
   return (
-    <section className="py-20 lg:py-28 bg-geo-bg-alt border-t border-geo-border/60">
+    <section className="py-28 lg:py-36 bg-geo-bg-alt border-t border-geo-border/60">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="geo-panel rounded-3xl p-6 sm:p-10 border border-geo-border/80 bg-geo-surface/80 relative overflow-hidden shadow-geo-elevated">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 mb-8">
-            <div className="space-y-2 max-w-xl">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-geo-elevated text-geo-cyan border border-geo-border text-xs font-mono">
+        <div className="geo-panel rounded-3xl p-8 sm:p-14 border border-geo-border/80 bg-geo-surface/80 relative overflow-hidden shadow-geo-elevated space-y-10">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 pb-4 border-b border-geo-border/60">
+            <div className="space-y-3 max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-geo-elevated text-geo-cyan border border-geo-border text-xs font-mono">
                 <Box className="w-3.5 h-3.5" />
                 <span>Interactive Terrain Preview</span>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-geo-text">
+              <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
                 Explore the Terrain
               </h2>
-              <p className="text-xs sm:text-sm text-geo-muted leading-relaxed">
+              <p className="text-base text-slate-300 leading-relaxed font-normal">
                 Interact with this reconstructed 3D surface model directly in your browser. Rotate,
                 pan, and inspect relief contours before launching the full processing workspace.
               </p>
@@ -94,23 +93,23 @@ export const TerrainPreviewSection: React.FC = () => {
 
             <button
               onClick={scrollToWorkspace}
-              className="px-6 py-3.5 rounded-xl bg-geo-cyan text-geo-bg hover:bg-cyan-400 font-mono text-sm font-semibold flex items-center justify-center gap-2.5 transition-all shadow-geo-glow shrink-0"
+              className="px-8 py-4 rounded-2xl bg-geo-cyan text-geo-bg hover:bg-cyan-400 font-mono text-sm font-bold flex items-center justify-center gap-3 transition-all shadow-geo-glow hover:shadow-[0_0_35px_rgba(6,182,212,0.45)] hover:-translate-y-0.5 shrink-0"
             >
               <span>Launch Full Demo Workspace</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Large 3D Canvas Box */}
-          <div className="relative w-full h-[420px] sm:h-[500px] rounded-2xl overflow-hidden border border-geo-border bg-geo-bg shadow-inner">
-            <div className="absolute top-4 left-4 z-20 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-geo-surface/90 border border-geo-border text-xs font-mono text-geo-text backdrop-blur-md pointer-events-none">
-              <Compass className="w-3.5 h-3.5 text-geo-cyan" />
+          {/* Large 3D Canvas Box with ample height */}
+          <div className="relative w-full h-[460px] sm:h-[580px] lg:h-[640px] rounded-2xl overflow-hidden border border-geo-border bg-geo-bg shadow-inner">
+            <div className="absolute top-5 left-6 z-20 flex items-center gap-2 px-4 py-2 rounded-full bg-geo-surface/90 border border-geo-border text-xs font-mono text-slate-200 backdrop-blur-md pointer-events-none">
+              <Compass className="w-4 h-4 text-geo-cyan" />
               <span>Left Click: Rotate • Right Click: Pan • Scroll: Zoom</span>
             </div>
 
             <Canvas
               shadows
-              camera={{ position: [18, 14, 22], fov: 45 }}
+              camera={{ position: [18, 14, 22], fov: 42 }}
               className="w-full h-full cursor-grab active:cursor-grabbing"
             >
               <ambientLight intensity={0.5} />

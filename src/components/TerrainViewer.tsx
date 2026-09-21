@@ -264,7 +264,7 @@ export const TerrainViewer: React.FC<TerrainViewerProps> = ({
   };
 
   return (
-    <div className="relative w-full h-full min-h-[520px] lg:min-h-[640px] rounded-2xl overflow-hidden border border-geo-border bg-geo-bg shadow-geo-elevated">
+    <div className="relative w-full h-full min-h-[600px] lg:min-h-[720px] xl:min-h-[780px] rounded-3xl overflow-hidden border border-geo-border bg-geo-bg shadow-geo-elevated">
       {/* Subtle Technical Terrain Status Badge */}
       <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
         {isRealData && glbUrl && !hasGlbError ? (
