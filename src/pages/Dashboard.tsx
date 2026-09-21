@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from '../components/Navbar';
-import { ImageUploader } from '../components/ImageUploader';
-import { ProcessingPipeline } from '../components/ProcessingPipeline';
-import { TerrainViewer } from '../components/TerrainViewer';
-import { TerrainControls } from '../components/TerrainControls';
-import { ResultCards } from '../components/ResultCards';
-import { AnalysisPanel } from '../components/AnalysisPanel';
-import { FlythroughControls } from '../components/FlythroughControls';
+import { HeroSection } from '../components/landing/HeroSection';
+import { WhyDepthWizard } from '../components/landing/WhyDepthWizard';
+import { HowItWorks } from '../components/landing/HowItWorks';
+import { TechnologySection } from '../components/landing/TechnologySection';
+import { TerrainPreviewSection } from '../components/landing/TerrainPreviewSection';
+import { DemoWorkspace } from '../components/workspace/DemoWorkspace';
+import { Footer } from '../components/Footer';
 import {
   PipelineOutputs,
   PipelineStageInfo,
@@ -18,7 +18,6 @@ import {
   INITIAL_PIPELINE_STAGES,
   DEMO_TERRAIN_METADATA,
   generateSyntheticPreviewUrl,
-  CONTRACT_PATHS,
 } from '../data/demoData';
 import { checkPipelineOutputs, parseNpyStats } from '../services/api';
 
@@ -68,8 +67,6 @@ export const Dashboard: React.FC = () => {
   // Active view tab for results
   const [selectedStage, setSelectedStage] = useState<'rgb' | 'depth' | 'dsm' | '3d'>('3d');
 
-  const viewerContainerRef = useRef<HTMLDivElement>(null);
-
   // Initial scan of outputs/ folder to detect upstream member files
   const scanOutputs = async () => {
     setIsScanning(true);
@@ -80,7 +77,6 @@ export const Dashboard: React.FC = () => {
         setIsDemoMode(false);
         setSystemStatus('TERRAIN READY');
 
-        // Check for real DSM npy stats
         if (liveOutputs.dsmNpy) {
           const stats = await parseNpyStats(liveOutputs.dsmNpy);
           if (stats) {
@@ -92,7 +88,6 @@ export const Dashboard: React.FC = () => {
           }
         }
       } else {
-        // Prepare synthetic fallback previews for immediate demo presentation
         loadDemoSampleFallback();
       }
     } catch (err) {
@@ -112,7 +107,7 @@ export const Dashboard: React.FC = () => {
       originalImage: syntheticRgb,
       depthImage: syntheticDepth,
       dsmImage: syntheticDsm,
-      terrainGlb: null, // Fallback to procedural mesh
+      terrainGlb: null,
       terrainHtml: null,
       depthNpy: null,
       dsmNpy: null,
@@ -146,7 +141,6 @@ export const Dashboard: React.FC = () => {
     setPreviewUrl(objectUrl);
     setSystemStatus('READY');
 
-    // Update Stage 1 in pipeline
     setStages((prev) =>
       prev.map((s) => (s.id === 'rgb' ? { ...s, status: 'COMPLETED' } : s))
     );
@@ -166,7 +160,7 @@ export const Dashboard: React.FC = () => {
     );
   };
 
-  // Run the sequential pipeline simulation / live execution
+  // Run the sequential pipeline simulation
   const handleGenerate = async () => {
     if (!previewUrl) return;
 
@@ -225,15 +219,15 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleResetCamera = () => {
-    // Re-trigger viewer reset by cycling scale or resetting flythrough
     setIsFlythrough(false);
     setVerticalScale(1.2);
   };
 
   const handleToggleFullscreen = () => {
-    if (!viewerContainerRef.current) return;
+    const el = document.getElementById('demo-workspace');
+    if (!el) return;
     if (!document.fullscreenElement) {
-      viewerContainerRef.current.requestFullscreen().catch(() => {});
+      el.requestFullscreen().catch(() => {});
       setIsFullscreen(true);
     } else {
       document.exitFullscreen().catch(() => {});
@@ -242,8 +236,8 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-space-950 text-slate-100 bg-grid-pattern flex flex-col selection:bg-gis-cyan/20 selection:text-gis-cyan">
-      {/* Top Navbar */}
+    <div className="min-h-screen bg-geo-bg text-geo-text flex flex-col font-sans selection:bg-geo-cyan/20 selection:text-geo-cyan">
+      {/* Sticky Header Navbar */}
       <Navbar
         status={systemStatus}
         isDemoMode={isDemoMode}
@@ -252,106 +246,64 @@ export const Dashboard: React.FC = () => {
         isScanning={isScanning}
       />
 
-      {/* Main Workspace */}
-      <main className="flex-1 max-w-[1720px] w-full mx-auto p-4 sm:p-6 space-y-6">
-        {/* Workspace Layout: Left (Controls/Pipeline) | Right (Large 3D Focus) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column (Input & Pipeline Controls) */}
-          <div className="lg:col-span-5 space-y-5">
-            {/* Image Uploader & Trigger */}
-            <ImageUploader
-              selectedFile={selectedFile}
-              previewUrl={previewUrl}
-              onFileSelect={handleFileSelect}
-              onRemove={handleRemoveImage}
-              onLoadSample={handleLoadSample}
-              onGenerate={handleGenerate}
-              isProcessing={isProcessing}
-            />
+      {/* 1. Landing Page: Hero Section */}
+      <HeroSection />
 
-            {/* Sequential 4-Member Pipeline Status */}
-            <ProcessingPipeline
-              stages={stages}
-              activeStageId={activeStageId}
-            />
-          </div>
+      {/* 2. Landing Page: Why DepthWizard Problem / Solution */}
+      <WhyDepthWizard />
 
-          {/* Right Column (Large 3D Terrain Viewer Focus) */}
-          <div
-            ref={viewerContainerRef}
-            className="lg:col-span-7 flex flex-col space-y-3 min-h-[500px]"
-          >
-            {/* 3D Viewer Container */}
-            <div className="relative flex-1">
-              <TerrainViewer
-                glbUrl={outputs.terrainGlb}
-                htmlUrl={outputs.terrainHtml}
-                isRealData={!isDemoMode && outputs.isRealData}
-                isWireframe={isWireframe}
-                showGrid={showGrid}
-                verticalScale={verticalScale}
-                colorMode={colorMode}
-                sunIntensity={sunIntensity}
-                isFlythrough={isFlythrough}
-                flythroughSpeed={flythroughSpeed}
-                onInspectPoint={setInspectedPoint}
-                inspectedPoint={inspectedPoint}
-              />
+      {/* 3. Landing Page: 5-Stage How It Works Story */}
+      <HowItWorks />
 
-              {/* Flythrough overlay */}
-              <FlythroughControls
-                isActive={isFlythrough}
-                onExit={() => setIsFlythrough(false)}
-                speed={flythroughSpeed}
-                onChangeSpeed={setFlythroughSpeed}
-              />
-            </div>
+      {/* 4. Landing Page: Built as a Geospatial AI Pipeline */}
+      <TechnologySection />
 
-            {/* Terrain Viewer Action Controls */}
-            <TerrainControls
-              onResetView={handleResetCamera}
-              isFlythrough={isFlythrough}
-              onToggleFlythrough={() => setIsFlythrough((v) => !v)}
-              showGrid={showGrid}
-              onToggleGrid={() => setShowGrid((v) => !v)}
-              isWireframe={isWireframe}
-              onToggleWireframe={() => setIsWireframe((v) => !v)}
-              isFullscreen={isFullscreen}
-              onToggleFullscreen={handleToggleFullscreen}
-              verticalScale={verticalScale}
-              onChangeVerticalScale={setVerticalScale}
-              colorMode={colorMode}
-              onToggleColorMode={() =>
-                setColorMode((m) => (m === 'texture' ? 'elevation' : 'texture'))
-              }
-              sunIntensity={sunIntensity}
-              onChangeSunIntensity={setSunIntensity}
-            />
-          </div>
-        </div>
+      {/* 5. Landing Page: 3D Terrain Interactive Preview */}
+      <TerrainPreviewSection />
 
-        {/* Lower Results Section: Artifacts Grid & Elevation Analysis */}
-        <div className="space-y-6 pt-2">
-          {/* Output Artifacts Cards */}
-          <ResultCards
-            outputs={outputs}
-            isProcessing={isProcessing}
-            onSelectViewStage={setSelectedStage}
-            selectedStage={selectedStage}
-          />
-
-          {/* Geospatial Elevation Analysis Panel */}
-          <AnalysisPanel metadata={metadata} />
-        </div>
-      </main>
+      {/* 6. Interactive Demo Workspace Section */}
+      <DemoWorkspace
+        systemStatus={systemStatus}
+        isDemoMode={isDemoMode}
+        onToggleDemoMode={() => setIsDemoMode((v) => !v)}
+        onRefresh={scanOutputs}
+        isScanning={isScanning}
+        selectedFile={selectedFile}
+        previewUrl={previewUrl}
+        onFileSelect={handleFileSelect}
+        onRemove={handleRemoveImage}
+        onLoadSample={handleLoadSample}
+        onGenerate={handleGenerate}
+        isProcessing={isProcessing}
+        stages={stages}
+        activeStageId={activeStageId}
+        outputs={outputs}
+        isWireframe={isWireframe}
+        setIsWireframe={setIsWireframe}
+        showGrid={showGrid}
+        setShowGrid={setShowGrid}
+        verticalScale={verticalScale}
+        setVerticalScale={setVerticalScale}
+        colorMode={colorMode}
+        setColorMode={setColorMode}
+        sunIntensity={sunIntensity}
+        setSunIntensity={setSunIntensity}
+        isFlythrough={isFlythrough}
+        setIsFlythrough={setIsFlythrough}
+        flythroughSpeed={flythroughSpeed}
+        setFlythroughSpeed={setFlythroughSpeed}
+        isFullscreen={isFullscreen}
+        handleToggleFullscreen={handleToggleFullscreen}
+        inspectedPoint={inspectedPoint}
+        setInspectedPoint={setInspectedPoint}
+        handleResetCamera={handleResetCamera}
+        selectedStage={selectedStage}
+        setSelectedStage={setSelectedStage}
+        metadata={metadata}
+      />
 
       {/* Footer */}
-      <footer className="w-full border-t border-space-800 bg-space-950/90 py-4 px-6 text-center text-xs font-mono text-slate-500">
-        <p>
-          DepthWizard SIH 2026 (PS 26175) — Member 4 (Frontend / Demo Integration) • Primary Contract:{' '}
-          <span className="text-slate-400">contract.md</span>
-        </p>
-      </footer>
+      <Footer />
     </div>
   );
 };

@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import {
   Image as ImageIcon,
-  Layers,
   Mountain,
+  Layers,
   Box,
-  ExternalLink,
   Download,
-  Eye,
   FileCode,
-  Info,
+  CheckCircle2,
+  AlertCircle,
+  ExternalLink,
 } from 'lucide-react';
 import { PipelineOutputs } from '../types';
 
@@ -25,246 +25,198 @@ export const ResultCards: React.FC<ResultCardsProps> = ({
   onSelectViewStage,
   selectedStage,
 }) => {
-  const [activeModalImg, setActiveModalImg] = useState<{ title: string; src: string } | null>(null);
+  const tabs = [
+    {
+      id: 'rgb' as const,
+      label: 'Input Optical RGB',
+      shortLabel: 'RGB Input',
+      step: '01',
+      icon: ImageIcon,
+      available: !!outputs.originalImage,
+      filename: 'outputs/original.png',
+      owner: 'Golden Sample / Input',
+      format: 'PNG (24-bit RGB)',
+      desc: 'Raw optical satellite or aerial photograph provided as the single-view input baseline.',
+      src: outputs.originalImage,
+      downloadUrl: outputs.originalImage,
+      downloadName: 'original.png',
+    },
+    {
+      id: 'depth' as const,
+      label: 'Relative Depth Map',
+      shortLabel: 'Depth Map',
+      step: '02',
+      icon: Mountain,
+      available: !!outputs.depthImage,
+      filename: 'outputs/depth.png & depth.npy',
+      owner: 'Member 1 — AI / Depth',
+      format: 'NumPy 2D float32 + PNG',
+      desc: 'Monocular neural relative depth estimation capturing structural depth gradients and surface geometry.',
+      src: outputs.depthImage,
+      downloadUrl: outputs.depthImage,
+      downloadName: 'depth.png',
+    },
+    {
+      id: 'dsm' as const,
+      label: 'Calibrated DSM Surface',
+      shortLabel: 'Calibrated DSM',
+      step: '03',
+      icon: Layers,
+      available: !!outputs.dsmImage,
+      filename: 'outputs/dsm.png & dsm.npy',
+      owner: 'Member 2 — GIS / Calibration',
+      format: 'NumPy 2D float32 + GeoTIFF',
+      desc: 'Topographic elevation raster with calibrated metric Z-coordinates and spatial scale references.',
+      src: outputs.dsmImage,
+      downloadUrl: outputs.dsmImage,
+      downloadName: 'dsm.png',
+    },
+    {
+      id: '3d' as const,
+      label: '3D Terrain Model',
+      shortLabel: '3D Terrain',
+      step: '04',
+      icon: Box,
+      available: !!outputs.terrainGlb || !!outputs.terrainHtml,
+      filename: 'outputs/terrain.glb',
+      owner: 'Member 3 — 3D / Integration',
+      format: 'glTF 2.0 Binary (GLB)',
+      desc: 'Triangulated 3D mesh surface draped with original optical RGB texture for real-time visualization.',
+      src: null,
+      downloadUrl: outputs.terrainGlb,
+      downloadName: 'terrain.glb',
+    },
+  ];
+
+  const currentTab = tabs.find((t) => t.id === selectedStage) || tabs[0];
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="geo-panel rounded-2xl p-6 sm:p-8 border border-geo-border space-y-6">
+      {/* Header & Tabs */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-geo-border/60">
         <div>
-          <h2 className="text-sm font-semibold tracking-wide text-white flex items-center gap-2">
-            <Layers className="w-4 h-4 text-gis-cyan" />
+          <h3 className="text-sm font-bold tracking-wide text-geo-text flex items-center gap-2">
+            <Layers className="w-4 h-4 text-geo-cyan" />
             Pipeline Output Artifacts
-          </h2>
-          <p className="text-xs text-slate-400">
-            Per Section 4 & 14 of contract.md (outputs/ directory)
+          </h3>
+          <p className="text-xs text-geo-muted mt-0.5">
+            Detailed inspection of contract deliverables generated in outputs/
           </p>
+        </div>
+
+        {/* Tab Switcher */}
+        <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-geo-bg border border-geo-border">
+          {tabs.map((tab) => {
+            const isSelected = selectedStage === tab.id;
+            const Icon = tab.icon;
+
+            return (
+              <button
+                key={tab.id}
+                onClick={() => onSelectViewStage(tab.id)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono transition-all ${
+                  isSelected
+                    ? 'bg-geo-elevated text-geo-text border border-geo-border font-bold shadow-sm'
+                    : 'text-geo-muted hover:text-geo-text'
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-geo-cyan' : 'text-geo-subtle'}`} />
+                <span>{tab.shortLabel}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-        {/* Card 1: INPUT RGB */}
-        <div
-          onClick={() => onSelectViewStage('rgb')}
-          className={`glass-panel rounded-xl p-3.5 border transition-all cursor-pointer ${
-            selectedStage === 'rgb'
-              ? 'border-gis-cyan/60 bg-space-900/90 shadow-[0_0_15px_rgba(0,240,255,0.1)]'
-              : 'border-space-700/70 hover:border-slate-500'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-white">
-              <ImageIcon className="w-3.5 h-3.5 text-gis-cyan" />
-              <span>INPUT RGB</span>
-            </div>
-            <span
-              className={`text-[10px] font-mono px-1.5 py-0.2 rounded border ${
-                outputs.originalImage
-                  ? 'bg-emerald-950/60 text-emerald-300 border-emerald-500/40'
-                  : 'bg-space-900 text-slate-500 border-space-800'
-              }`}
-            >
-              {outputs.originalImage ? '✓ Available' : 'Not available'}
-            </span>
-          </div>
-
-          <div className="relative h-28 rounded-lg overflow-hidden bg-space-950 border border-space-800 flex items-center justify-center">
-            {outputs.originalImage ? (
+      {/* Active Tab Detailed View */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+        {/* Left: Large Visual Preview Box */}
+        <div className="lg:col-span-7">
+          <div className="relative w-full h-72 sm:h-80 rounded-xl overflow-hidden border border-geo-border bg-geo-bg flex items-center justify-center group">
+            {currentTab.src ? (
               <img
-                src={outputs.originalImage}
-                alt="Input RGB"
-                className="w-full h-full object-cover"
+                src={currentTab.src}
+                alt={currentTab.label}
+                className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500"
               />
+            ) : currentTab.id === '3d' ? (
+              <div className="text-center p-6 space-y-2">
+                <Box className="w-12 h-12 mx-auto text-geo-cyan animate-pulse" />
+                <p className="text-sm font-bold text-geo-text">
+                  3D Watertight Terrain Mesh
+                </p>
+                <p className="text-xs text-geo-muted max-w-sm">
+                  The interactive 3D terrain model is live in the main viewer above. You can also download the binary GLB file below.
+                </p>
+              </div>
             ) : (
-              <div className="text-center p-2 text-slate-500 text-xs font-mono">
-                <span>Not available</span>
-                <p className="text-[10px] text-slate-600 mt-1">outputs/original.png</p>
+              <div className="text-center p-6 space-y-1 text-geo-muted font-mono text-xs">
+                <AlertCircle className="w-6 h-6 mx-auto text-geo-subtle" />
+                <p className="font-semibold text-geo-text">Not Available Yet</p>
+                <p className="text-[11px] text-geo-subtle">{currentTab.filename}</p>
               </div>
             )}
-          </div>
 
-          <div className="mt-2.5 flex items-center justify-between text-[11px] font-mono text-slate-400">
-            <span className="truncate">original.png</span>
-            {outputs.originalImage && (
-              <a
-                href={outputs.originalImage}
-                download="original.png"
-                onClick={(e) => e.stopPropagation()}
-                title="Download original.png"
-                className="text-slate-400 hover:text-gis-cyan"
+            {/* Availability status badge */}
+            <div className="absolute top-3 left-3 z-10">
+              <span
+                className={`text-[10px] font-mono px-2.5 py-1 rounded-full border backdrop-blur-md ${
+                  currentTab.available
+                    ? 'bg-geo-surface/90 text-emerald-300 border-emerald-500/30'
+                    : 'bg-geo-surface/90 text-geo-muted border-geo-border'
+                }`}
               >
-                <Download className="w-3.5 h-3.5" />
-              </a>
-            )}
+                {currentTab.available ? '✓ Contract Output Available' : '○ Standby / Demo Fallback'}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Card 2: RELATIVE DEPTH (Member 1) */}
-        <div
-          onClick={() => onSelectViewStage('depth')}
-          className={`glass-panel rounded-xl p-3.5 border transition-all cursor-pointer ${
-            selectedStage === 'depth'
-              ? 'border-gis-cyan/60 bg-space-900/90 shadow-[0_0_15px_rgba(0,240,255,0.1)]'
-              : 'border-space-700/70 hover:border-slate-500'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-white">
-              <Mountain className="w-3.5 h-3.5 text-amber-400" />
-              <span>RELATIVE DEPTH</span>
-            </div>
-            <span
-              className={`text-[10px] font-mono px-1.5 py-0.2 rounded border ${
-                outputs.depthImage
-                  ? 'bg-emerald-950/60 text-emerald-300 border-emerald-500/40'
-                  : 'bg-purple-950/60 text-purple-300 border-purple-500/40'
-              }`}
-            >
-              {outputs.depthImage ? '✓ Available' : 'DEMO / PREVIEW'}
+        {/* Right: Technical Metadata & Artifact Actions */}
+        <div className="lg:col-span-5 space-y-5">
+          <div>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-geo-surface text-geo-cyan border border-geo-border">
+              Step {currentTab.step} Artifact
             </span>
+            <h4 className="text-lg font-bold text-geo-text mt-2">
+              {currentTab.label}
+            </h4>
+            <p className="text-xs text-geo-muted leading-relaxed mt-1">
+              {currentTab.desc}
+            </p>
           </div>
 
-          <div className="relative h-28 rounded-lg overflow-hidden bg-space-950 border border-space-800 flex items-center justify-center">
-            {outputs.depthImage ? (
-              <img
-                src={outputs.depthImage}
-                alt="Depth Map"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="text-center p-2 text-slate-400 text-xs font-mono">
-                <span className="text-purple-400 font-bold">DEMO PREVIEW</span>
-                <p className="text-[10px] text-slate-500 mt-1">Member 1 — AI / Depth</p>
-                <p className="text-[9px] text-slate-600">outputs/depth.png</p>
-              </div>
-            )}
-          </div>
-
-          <div className="mt-2.5 flex items-center justify-between text-[11px] font-mono text-slate-400">
-            <span className="truncate">depth.png / depth.npy</span>
-            {outputs.depthImage && (
-              <a
-                href={outputs.depthImage}
-                download="depth.png"
-                onClick={(e) => e.stopPropagation()}
-                title="Download depth.png"
-                className="text-slate-400 hover:text-gis-cyan"
-              >
-                <Download className="w-3.5 h-3.5" />
-              </a>
-            )}
-          </div>
-        </div>
-
-        {/* Card 3: CALIBRATED DSM (Member 2) */}
-        <div
-          onClick={() => onSelectViewStage('dsm')}
-          className={`glass-panel rounded-xl p-3.5 border transition-all cursor-pointer ${
-            selectedStage === 'dsm'
-              ? 'border-gis-cyan/60 bg-space-900/90 shadow-[0_0_15px_rgba(0,240,255,0.1)]'
-              : 'border-space-700/70 hover:border-slate-500'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-white">
-              <Layers className="w-3.5 h-3.5 text-emerald-400" />
-              <span>CALIBRATED DSM</span>
+          <div className="space-y-2.5 p-4 rounded-xl bg-geo-surface/50 border border-geo-border text-xs font-mono">
+            <div className="flex items-center justify-between">
+              <span className="text-geo-subtle">Output Path:</span>
+              <span className="text-geo-text font-bold truncate max-w-[200px]">
+                {currentTab.filename}
+              </span>
             </div>
-            <span
-              className={`text-[10px] font-mono px-1.5 py-0.2 rounded border ${
-                outputs.dsmImage
-                  ? 'bg-emerald-950/60 text-emerald-300 border-emerald-500/40'
-                  : 'bg-purple-950/60 text-purple-300 border-purple-500/40'
-              }`}
+            <div className="flex items-center justify-between">
+              <span className="text-geo-subtle">Responsible:</span>
+              <span className="text-geo-cyan truncate">{currentTab.owner}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-geo-subtle">Data Format:</span>
+              <span className="text-geo-text">{currentTab.format}</span>
+            </div>
+          </div>
+
+          {currentTab.downloadUrl ? (
+            <a
+              href={currentTab.downloadUrl}
+              download={currentTab.downloadName}
+              className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-geo-elevated hover:bg-geo-border text-geo-text border border-geo-border font-mono text-xs font-medium transition-colors shadow-sm"
             >
-              {outputs.dsmImage ? '✓ Available' : 'DEMO / PREVIEW'}
-            </span>
-          </div>
-
-          <div className="relative h-28 rounded-lg overflow-hidden bg-space-950 border border-space-800 flex items-center justify-center">
-            {outputs.dsmImage ? (
-              <img
-                src={outputs.dsmImage}
-                alt="DSM Elevation"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="text-center p-2 text-slate-400 text-xs font-mono">
-                <span className="text-purple-400 font-bold">DEMO PREVIEW</span>
-                <p className="text-[10px] text-slate-500 mt-1">Member 2 — GIS / Calibration</p>
-                <p className="text-[9px] text-slate-600">outputs/dsm.png</p>
-              </div>
-            )}
-          </div>
-
-          <div className="mt-2.5 flex items-center justify-between text-[11px] font-mono text-slate-400">
-            <span className="truncate">dsm.png / dsm.npy</span>
-            {outputs.dsmImage && (
-              <a
-                href={outputs.dsmImage}
-                download="dsm.png"
-                onClick={(e) => e.stopPropagation()}
-                title="Download dsm.png"
-                className="text-slate-400 hover:text-gis-cyan"
-              >
-                <Download className="w-3.5 h-3.5" />
-              </a>
-            )}
-          </div>
-        </div>
-
-        {/* Card 4: 3D TERRAIN (Member 3) */}
-        <div
-          onClick={() => onSelectViewStage('3d')}
-          className={`glass-panel rounded-xl p-3.5 border transition-all cursor-pointer ${
-            selectedStage === '3d'
-              ? 'border-gis-cyan/60 bg-space-900/90 shadow-[0_0_15px_rgba(0,240,255,0.1)]'
-              : 'border-space-700/70 hover:border-slate-500'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-white">
-              <Box className="w-3.5 h-3.5 text-blue-400" />
-              <span>3D TERRAIN</span>
+              <Download className="w-3.5 h-3.5 text-geo-cyan" />
+              <span>Download {currentTab.downloadName}</span>
+            </a>
+          ) : (
+            <div className="text-center py-2 px-3 rounded-lg bg-geo-surface text-geo-subtle text-xs font-mono border border-geo-border">
+              Artifact generated during active pipeline run
             </div>
-            <span
-              className={`text-[10px] font-mono px-1.5 py-0.2 rounded border ${
-                outputs.terrainGlb || outputs.terrainHtml
-                  ? 'bg-emerald-950/60 text-emerald-300 border-emerald-500/40'
-                  : 'bg-purple-950/60 text-purple-300 border-purple-500/40'
-              }`}
-            >
-              {outputs.terrainGlb
-                ? '✓ terrain.glb'
-                : outputs.terrainHtml
-                ? '✓ terrain.html'
-                : 'DEMO / PREVIEW'}
-            </span>
-          </div>
-
-          <div className="relative h-28 rounded-lg overflow-hidden bg-space-950 border border-space-800 flex items-center justify-center">
-            <div className="text-center p-2 font-mono text-xs">
-              <Box className="w-7 h-7 mx-auto mb-1 text-gis-cyan animate-pulse" />
-              <p className="text-slate-300 font-bold">Interactive 3D Mesh</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">
-                {outputs.terrainGlb ? 'GLB Loaded' : 'Procedural Fallback'}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-2.5 flex items-center justify-between text-[11px] font-mono text-slate-400">
-            <span className="truncate">terrain.glb</span>
-            {outputs.terrainGlb && (
-              <a
-                href={outputs.terrainGlb}
-                download="terrain.glb"
-                onClick={(e) => e.stopPropagation()}
-                title="Download terrain.glb"
-                className="text-slate-400 hover:text-gis-cyan"
-              >
-                <Download className="w-3.5 h-3.5" />
-              </a>
-            )}
-          </div>
+          )}
         </div>
       </div>
     </div>

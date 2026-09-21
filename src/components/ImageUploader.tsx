@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { UploadCloud, Image as ImageIcon, X, RefreshCw, FileCheck, ArrowRight } from 'lucide-react';
+import { UploadCloud, Image as ImageIcon, X, RefreshCw, FileCheck, ArrowRight, Sparkles } from 'lucide-react';
 
 interface ImageUploaderProps {
   selectedFile: File | null;
@@ -40,7 +40,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
     const hasValidExt = validExts.some(ext => file.name.toLowerCase().endsWith(ext));
 
     if (!validTypes.includes(file.type) && !hasValidExt) {
-      setErrorMessage('Unsupported file format. Please upload PNG, JPG, JPEG, or TIFF.');
+      setErrorMessage('Unsupported format. Please upload a single PNG, JPG, JPEG, or TIFF image.');
       return;
     }
     onFileSelect(file);
@@ -67,43 +67,44 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
   };
 
   return (
-    <div className="glass-panel rounded-xl p-5 border border-space-700/80 shadow-lg">
-      <div className="flex items-center justify-between mb-3">
+    <div className="geo-panel rounded-2xl p-6 sm:p-7 border border-geo-border space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h2 className="text-sm font-semibold tracking-wide text-white flex items-center gap-2">
-            <ImageIcon className="w-4 h-4 text-gis-cyan" />
+          <h3 className="text-sm font-bold tracking-wide text-geo-text flex items-center gap-2">
+            <ImageIcon className="w-4 h-4 text-geo-cyan" />
             Upload RGB Image
-          </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Upload a single optical image to generate depth, calibrated elevation and a 3D terrain model.
+          </h3>
+          <p className="text-xs text-geo-muted mt-0.5">
+            Upload a single optical image to generate depth, calibrated elevation, and a 3D terrain model.
           </p>
         </div>
         <button
           onClick={onLoadSample}
           disabled={isProcessing}
-          className="text-xs font-mono text-gis-cyan hover:text-cyan-300 underline underline-offset-2 flex items-center gap-1 transition-colors disabled:opacity-50"
+          className="text-xs font-mono text-geo-cyan hover:text-cyan-300 flex items-center gap-1.5 transition-colors self-start sm:self-auto py-1 px-2.5 rounded-lg bg-geo-surface border border-geo-border hover:border-geo-cyan/40"
         >
-          Use Golden Sample
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>Load Golden Sample</span>
         </button>
       </div>
 
       {errorMessage && (
-        <div className="mb-3 p-2.5 rounded-lg bg-rose-950/40 border border-rose-600/40 text-rose-300 text-xs font-mono">
+        <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-800/40 text-rose-300 text-xs font-mono">
           {errorMessage}
         </div>
       )}
 
-      {/* Upload Zone / Preview */}
+      {/* Upload Zone / Active Preview */}
       {!previewUrl ? (
         <div
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
-          className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
+          className={`border-2 border-dashed rounded-2xl p-8 sm:p-10 text-center cursor-pointer transition-all ${
             isDragging
-              ? 'border-gis-cyan bg-gis-cyan/5 shadow-[0_0_20px_rgba(0,240,255,0.15)]'
-              : 'border-space-700 hover:border-slate-500 hover:bg-space-900/50'
+              ? 'border-geo-cyan bg-geo-cyan/5 shadow-geo-glow'
+              : 'border-geo-border hover:border-geo-border/80 hover:bg-geo-surface/50'
           }`}
         >
           <input
@@ -113,50 +114,48 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
             className="hidden"
             onChange={handleFileInputChange}
           />
-          <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-space-800/80 border border-space-700 flex items-center justify-center text-slate-300 group-hover:text-gis-cyan">
-            <UploadCloud className="w-6 h-6 text-gis-cyan" />
+          <div className="w-14 h-14 mx-auto mb-3.5 rounded-2xl bg-geo-surface border border-geo-border flex items-center justify-center text-geo-muted group-hover:text-geo-cyan">
+            <UploadCloud className="w-7 h-7 text-geo-cyan" />
           </div>
-          <p className="text-xs font-medium text-slate-200">
+          <p className="text-sm font-semibold text-geo-text">
             Click to browse or drag & drop single RGB image
           </p>
-          <p className="text-[11px] text-slate-500 mt-1 font-mono">
+          <p className="text-xs text-geo-muted mt-1 font-mono">
             Supported: PNG, JPG, JPEG, TIFF (Max 25MB)
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {/* Active Image Preview Card */}
-          <div className="relative rounded-lg overflow-hidden border border-space-700/80 bg-space-950 group">
+        <div className="space-y-4">
+          <div className="relative rounded-xl overflow-hidden border border-geo-border bg-geo-bg group">
             <img
               src={previewUrl}
               alt="Uploaded RGB preview"
-              className="w-full h-44 object-cover object-center group-hover:scale-105 transition-transform duration-500"
+              className="w-full h-52 sm:h-60 object-cover object-center group-hover:scale-102 transition-transform duration-500"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-space-950/90 via-transparent to-transparent pointer-events-none" />
-            
-            {/* File info overlay */}
-            <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between">
-              <div className="flex items-center gap-2 overflow-hidden">
-                <FileCheck className="w-4 h-4 text-gis-cyan shrink-0" />
+            <div className="absolute inset-0 bg-gradient-to-t from-geo-bg/90 via-transparent to-transparent pointer-events-none" />
+
+            {/* Overlay detail info */}
+            <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between">
+              <div className="flex items-center gap-2.5 overflow-hidden">
+                <FileCheck className="w-4 h-4 text-geo-cyan shrink-0" />
                 <div className="truncate">
-                  <p className="text-xs font-mono text-white truncate">
+                  <p className="text-xs font-mono font-medium text-white truncate">
                     {selectedFile?.name || 'golden-sample-input.png'}
                   </p>
                   {selectedFile && (
-                    <p className="text-[10px] font-mono text-slate-400">
+                    <p className="text-[10px] font-mono text-geo-muted">
                       {formatFileSize(selectedFile.size)}
                     </p>
                   )}
                 </div>
               </div>
 
-              {/* Action buttons */}
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   title="Replace image"
                   disabled={isProcessing}
-                  className="p-1.5 rounded-md bg-space-900/80 hover:bg-space-800 text-slate-300 hover:text-white border border-space-700 transition-colors disabled:opacity-50"
+                  className="p-2 rounded-lg bg-geo-surface/80 hover:bg-geo-elevated text-geo-text border border-geo-border transition-colors disabled:opacity-50"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                 </button>
@@ -164,7 +163,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
                   onClick={onRemove}
                   title="Remove image"
                   disabled={isProcessing}
-                  className="p-1.5 rounded-md bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800/80 transition-colors disabled:opacity-50"
+                  className="p-2 rounded-lg bg-rose-950/70 hover:bg-rose-900 text-rose-300 border border-rose-800/60 transition-colors disabled:opacity-50"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -180,14 +179,14 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
             />
           </div>
 
-          {/* Process / Generate Button */}
+          {/* Primary Action Button */}
           <button
             onClick={onGenerate}
             disabled={isProcessing}
-            className={`w-full py-3 px-4 rounded-xl font-mono text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg ${
+            className={`w-full py-3.5 px-5 rounded-xl font-mono text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2.5 transition-all shadow-md ${
               isProcessing
-                ? 'bg-space-800 text-amber-300 border border-amber-500/40 cursor-wait'
-                : 'bg-gradient-to-r from-gis-cyan to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-space-950 shadow-[0_0_20px_rgba(0,240,255,0.25)] hover:shadow-[0_0_25px_rgba(0,240,255,0.4)]'
+                ? 'bg-geo-elevated text-amber-300 border border-amber-500/40 cursor-wait'
+                : 'bg-geo-cyan text-geo-bg hover:bg-cyan-400 shadow-geo-glow hover:shadow-[0_0_25px_rgba(6,182,212,0.35)]'
             }`}
           >
             {isProcessing ? (

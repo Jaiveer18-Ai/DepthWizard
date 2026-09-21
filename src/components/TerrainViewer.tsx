@@ -1,9 +1,9 @@
-import React, { Suspense, useRef, useState, useMemo, useEffect } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import React, { Suspense, useRef, useState, useMemo } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { TerrainPointInspection } from '../types';
-import { Layers, MapPin, Compass } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 
 interface TerrainViewerProps {
   glbUrl: string | null;
@@ -102,8 +102,8 @@ function ProceduralDemoTerrain({
 
   // Generate 128x128 grid with organic terrain heights
   const { geometry, colors } = useMemo(() => {
-    const size = 30;
-    const segments = 120;
+    const size = 32;
+    const segments = 128;
     const geo = new THREE.PlaneGeometry(size, size, segments, segments);
     geo.rotateX(-Math.PI / 2);
 
@@ -116,54 +116,53 @@ function ProceduralDemoTerrain({
 
       // Multi-octave natural terrain formula
       const distFromCenter = Math.sqrt(x * x + z * z);
-      const h1 = Math.sin(x * 0.25) * Math.cos(z * 0.25) * 3.5;
-      const h2 = Math.sin(x * 0.6 + z * 0.4) * 1.8;
-      const h3 = Math.cos(x * 1.2 - z * 0.9) * 0.8;
-      const falloff = Math.max(0, 1 - Math.pow(distFromCenter / 16, 2));
+      const h1 = Math.sin(x * 0.22) * Math.cos(z * 0.22) * 3.8;
+      const h2 = Math.sin(x * 0.55 + z * 0.35) * 1.6;
+      const h3 = Math.cos(x * 1.1 - z * 0.8) * 0.7;
+      const falloff = Math.max(0, 1 - Math.pow(distFromCenter / 17, 2));
 
-      const y = (h1 + h2 + h3 + 3.0) * falloff;
+      const y = (h1 + h2 + h3 + 3.2) * falloff;
       pos.setY(i, y);
 
-      // Height-based coloring (Turbo / Elevation or Natural Palette)
-      const normY = Math.max(0, Math.min(1, y / 7.0));
+      const normY = Math.max(0, Math.min(1, y / 7.5));
       const cIndex = i * 3;
 
       if (colorMode === 'elevation') {
-        // Turbo / GIS Elevation Palette: Deep Blue -> Teal -> Green -> Yellow -> Red
+        // Subtle Turbo/GIS Elevation Ramp
         if (normY < 0.25) {
-          vertexColors[cIndex] = 0.1;
-          vertexColors[cIndex + 1] = 0.4;
-          vertexColors[cIndex + 2] = 0.9;
+          vertexColors[cIndex] = 0.08;
+          vertexColors[cIndex + 1] = 0.35;
+          vertexColors[cIndex + 2] = 0.8;
         } else if (normY < 0.5) {
-          vertexColors[cIndex] = 0.1;
-          vertexColors[cIndex + 1] = 0.8;
-          vertexColors[cIndex + 2] = 0.5;
+          vertexColors[cIndex] = 0.08;
+          vertexColors[cIndex + 1] = 0.7;
+          vertexColors[cIndex + 2] = 0.45;
         } else if (normY < 0.75) {
-          vertexColors[cIndex] = 0.9;
-          vertexColors[cIndex + 1] = 0.8;
-          vertexColors[cIndex + 2] = 0.1;
+          vertexColors[cIndex] = 0.85;
+          vertexColors[cIndex + 1] = 0.75;
+          vertexColors[cIndex + 2] = 0.15;
         } else {
-          vertexColors[cIndex] = 0.9;
-          vertexColors[cIndex + 1] = 0.2;
+          vertexColors[cIndex] = 0.85;
+          vertexColors[cIndex + 1] = 0.25;
           vertexColors[cIndex + 2] = 0.2;
         }
       } else {
         // Satellite Natural Palette: River valley -> Forest -> Rock -> Snow
-        if (normY < 0.18) {
-          vertexColors[cIndex] = 0.15;
-          vertexColors[cIndex + 1] = 0.35;
-          vertexColors[cIndex + 2] = 0.55;
-        } else if (normY < 0.5) {
-          vertexColors[cIndex] = 0.2;
-          vertexColors[cIndex + 1] = 0.55;
-          vertexColors[cIndex + 2] = 0.25;
-        } else if (normY < 0.78) {
-          vertexColors[cIndex] = 0.55;
-          vertexColors[cIndex + 1] = 0.45;
+        if (normY < 0.2) {
+          vertexColors[cIndex] = 0.12;
+          vertexColors[cIndex + 1] = 0.28;
+          vertexColors[cIndex + 2] = 0.45;
+        } else if (normY < 0.52) {
+          vertexColors[cIndex] = 0.18;
+          vertexColors[cIndex + 1] = 0.48;
+          vertexColors[cIndex + 2] = 0.24;
+        } else if (normY < 0.8) {
+          vertexColors[cIndex] = 0.5;
+          vertexColors[cIndex + 1] = 0.42;
           vertexColors[cIndex + 2] = 0.35;
         } else {
-          vertexColors[cIndex] = 0.92;
-          vertexColors[cIndex + 1] = 0.95;
+          vertexColors[cIndex] = 0.9;
+          vertexColors[cIndex + 1] = 0.94;
           vertexColors[cIndex + 2] = 0.98;
         }
       }
@@ -185,7 +184,7 @@ function ProceduralDemoTerrain({
     >
       <meshStandardMaterial
         vertexColors
-        roughness={0.8}
+        roughness={0.75}
         metalness={0.15}
         wireframe={isWireframe}
         flatShading={false}
@@ -206,7 +205,7 @@ function CameraController({
 }) {
   const controlsRef = useRef<any>(null);
 
-  useFrame((state, delta) => {
+  useFrame(() => {
     if (isFlythrough && controlsRef.current) {
       controlsRef.current.autoRotate = true;
       controlsRef.current.autoRotateSpeed = flythroughSpeed * 1.8;
@@ -244,7 +243,6 @@ export const TerrainViewer: React.FC<TerrainViewerProps> = ({
 }) => {
   const [hasGlbError, setHasGlbError] = useState(false);
 
-  // Handle raycast click to extract elevation & coordinates
   const handlePointerDown = (e: any) => {
     e.stopPropagation();
     if (!e.point) return;
@@ -252,8 +250,7 @@ export const TerrainViewer: React.FC<TerrainViewerProps> = ({
     const x = parseFloat(e.point.x.toFixed(2));
     const z = parseFloat(e.point.z.toFixed(2));
     const rawY = e.point.y;
-    
-    // Calculate elevation in meters (either scaled from real model or simulated demo)
+
     const elevation = parseFloat(((rawY / verticalScale) * 180 + 350).toFixed(1));
     const slope = parseFloat((Math.abs(Math.sin(x * 0.3) * 22) + 5).toFixed(1));
 
@@ -267,72 +264,66 @@ export const TerrainViewer: React.FC<TerrainViewerProps> = ({
   };
 
   return (
-    <div className="relative w-full h-full min-h-[460px] lg:min-h-[560px] rounded-2xl overflow-hidden border border-space-700/80 bg-space-950 shadow-2xl">
-      {/* 3D Viewer Header Status Overlay */}
+    <div className="relative w-full h-full min-h-[520px] lg:min-h-[640px] rounded-2xl overflow-hidden border border-geo-border bg-geo-bg shadow-geo-elevated">
+      {/* Subtle Technical Terrain Status Badge */}
       <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
         {isRealData && glbUrl && !hasGlbError ? (
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 font-mono text-xs shadow-lg backdrop-blur-md">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="font-bold">GENERATED TERRAIN</span>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-geo-surface/90 border border-emerald-500/40 text-emerald-300 font-mono text-xs shadow-sm backdrop-blur-md">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="font-semibold">GENERATED TERRAIN</span>
           </div>
         ) : (
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-950/80 border border-purple-500/50 text-purple-300 font-mono text-xs shadow-lg backdrop-blur-md">
-            <span className="w-2 h-2 rounded-full bg-purple-400" />
-            <span className="font-bold">DEMO TERRAIN</span>
-            <span className="text-[10px] text-purple-400/80">(Procedural Elevation)</span>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-geo-surface/90 border border-geo-border text-geo-text font-mono text-xs shadow-sm backdrop-blur-md">
+            <span className="w-1.5 h-1.5 rounded-full bg-geo-cyan" />
+            <span className="font-semibold">DEMO TERRAIN</span>
+            <span className="text-[11px] text-geo-muted">(Procedural Surface)</span>
           </div>
         )}
       </div>
 
-      {/* Coordinate Inspector Marker Overlay */}
+      {/* Point Inspector Marker Overlay */}
       {inspectedPoint && (
-        <div className="absolute bottom-4 left-4 z-20 p-3 rounded-xl bg-space-950/90 border border-gis-cyan/40 backdrop-blur-md font-mono text-xs shadow-xl max-w-xs animate-in fade-in">
-          <div className="flex items-center justify-between border-b border-space-800 pb-1.5 mb-2">
-            <div className="flex items-center gap-1.5 text-gis-cyan font-bold">
+        <div className="absolute bottom-4 left-4 z-20 p-3.5 rounded-xl bg-geo-surface/95 border border-geo-border backdrop-blur-md font-mono text-xs shadow-geo-card max-w-xs animate-in fade-in">
+          <div className="flex items-center justify-between border-b border-geo-border/80 pb-2 mb-2">
+            <div className="flex items-center gap-1.5 text-geo-cyan font-bold">
               <MapPin className="w-3.5 h-3.5" />
               <span>POINT INSPECTION</span>
             </div>
-            {inspectedPoint.isDemoValue ? (
-              <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-600/50">
-                DEMO VALUE
-              </span>
-            ) : (
-              <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-600/50">
-                REAL DSM
-              </span>
-            )}
+            <span className="text-[10px] px-2 py-0.5 rounded bg-geo-bg border border-geo-border text-geo-muted">
+              {inspectedPoint.isDemoValue ? 'DEMO VALUE' : 'REAL DSM'}
+            </span>
           </div>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
             <div>
-              <span className="text-slate-400">X: </span>
-              <span className="text-white font-bold">{inspectedPoint.x} m</span>
+              <span className="text-geo-muted">X: </span>
+              <span className="text-geo-text font-bold">{inspectedPoint.x} m</span>
             </div>
             <div>
-              <span className="text-slate-400">Y: </span>
-              <span className="text-white font-bold">{inspectedPoint.y} m</span>
+              <span className="text-geo-muted">Y: </span>
+              <span className="text-geo-text font-bold">{inspectedPoint.y} m</span>
             </div>
             <div>
-              <span className="text-slate-400">Elevation: </span>
-              <span className="text-gis-cyan font-bold">{inspectedPoint.elevation} m</span>
+              <span className="text-geo-muted">Elevation: </span>
+              <span className="text-geo-cyan font-bold">{inspectedPoint.elevation} m</span>
             </div>
             <div>
-              <span className="text-slate-400">Slope: </span>
+              <span className="text-geo-muted">Slope: </span>
               <span className="text-amber-300 font-bold">{inspectedPoint.slope}°</span>
             </div>
           </div>
         </div>
       )}
 
-      {/* Fallback standalone HTML mode (Member 3 fallback contract) */}
+      {/* Fallback standalone HTML mode */}
       {!glbUrl && htmlUrl ? (
         <div className="w-full h-full flex flex-col">
-          <div className="bg-space-900 px-4 py-2 border-b border-space-700 text-xs font-mono text-slate-300 flex items-center justify-between">
+          <div className="bg-geo-surface px-4 py-2 border-b border-geo-border text-xs font-mono text-geo-muted flex items-center justify-between">
             <span>Stand-alone 3D Viewer (terrain.html fallback)</span>
             <a
               href={htmlUrl}
               target="_blank"
               rel="noreferrer"
-              className="text-gis-cyan hover:underline"
+              className="text-geo-cyan hover:underline"
             >
               Open in New Window ↗
             </a>
@@ -344,13 +335,11 @@ export const TerrainViewer: React.FC<TerrainViewerProps> = ({
           />
         </div>
       ) : (
-        /* Three.js R3F WebGL Canvas */
         <Canvas
           shadows
           camera={{ position: [18, 14, 22], fov: 45 }}
-          className="w-full h-full cursor-grab active:cursor-grabbing bg-gradient-to-b from-space-950 via-space-900 to-space-950"
+          className="w-full h-full cursor-grab active:cursor-grabbing bg-geo-bg"
         >
-          {/* Natural Lighting & Atmospheric Ambient */}
           <ambientLight intensity={0.45} />
           <directionalLight
             position={[25, 35, 15]}
@@ -360,17 +349,15 @@ export const TerrainViewer: React.FC<TerrainViewerProps> = ({
             shadow-bias={-0.0001}
           />
           <directionalLight position={[-20, 15, -15]} intensity={0.3} color="#60a5fa" />
-          <hemisphereLight args={['#38bdf8', '#0f172a', 0.4]} />
+          <hemisphereLight args={['#38bdf8', '#0b1728', 0.4]} />
 
-          {/* Reference Grid */}
           {showGrid && (
             <gridHelper
-              args={[36, 36, '#00f0ff', '#1e2b4a']}
+              args={[36, 36, '#06b6d4', '#1e314b']}
               position={[0, -0.05, 0]}
             />
           )}
 
-          {/* Model or Procedural Terrain */}
           <Suspense fallback={null}>
             {isRealData && glbUrl && !hasGlbError ? (
               <ModelErrorBoundary
@@ -401,7 +388,6 @@ export const TerrainViewer: React.FC<TerrainViewerProps> = ({
             )}
           </Suspense>
 
-          {/* Interactive Navigation & Flythrough Orbit */}
           <CameraController
             isFlythrough={isFlythrough}
             flythroughSpeed={flythroughSpeed}
