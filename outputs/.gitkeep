@@ -1,0 +1,10 @@
+# DepthWizard shared output directory per Section 4 of contract.md
+# Expected outputs:
+# outputs/original.png
+# outputs/depth.npy
+# outputs/depth.png
+# outputs/dsm.npy
+# outputs/dsm.png
+# outputs/dsm.tif
+# outputs/terrain.glb
+# outputs/terrain.html
