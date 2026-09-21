@@ -1,6 +1,6 @@
 import React, { useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
+import { OrbitControls } from '../ThreeControls';
 import * as THREE from 'three';
 import { ArrowRight, ChevronDown, Layers, Mountain, Compass, Sparkles } from 'lucide-react';
 

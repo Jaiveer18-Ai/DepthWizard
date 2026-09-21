@@ -1,6 +1,6 @@
 import React, { Suspense, useRef, useState, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, useGLTF } from '@react-three/drei';
+import { OrbitControls, useGLTF } from './ThreeControls';
 import * as THREE from 'three';
 import { TerrainPointInspection } from '../types';
 import { MapPin } from 'lucide-react';
