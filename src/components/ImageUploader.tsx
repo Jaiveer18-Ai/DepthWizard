@@ -67,21 +67,21 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
   };
 
   return (
-    <div className="geo-panel rounded-2xl p-6 sm:p-7 border border-geo-border space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+    <div className="geo-panel rounded-3xl p-8 sm:p-10 border border-geo-border/50 space-y-7">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h3 className="text-sm font-bold tracking-wide text-geo-text flex items-center gap-2">
-            <ImageIcon className="w-4 h-4 text-geo-cyan" />
+          <h3 className="text-base font-bold tracking-wide text-geo-text flex items-center gap-2.5">
+            <ImageIcon className="w-5 h-5 text-geo-cyan" />
             Upload RGB Image
           </h3>
-          <p className="text-xs text-geo-muted mt-0.5">
+          <p className="text-xs text-geo-muted mt-1.5 leading-relaxed">
             Upload a single optical image to generate depth, calibrated elevation, and a 3D terrain model.
           </p>
         </div>
         <button
           onClick={onLoadSample}
           disabled={isProcessing}
-          className="text-xs font-mono text-geo-cyan hover:text-cyan-300 flex items-center gap-1.5 transition-colors self-start sm:self-auto py-1 px-2.5 rounded-lg bg-geo-surface border border-geo-border hover:border-geo-cyan/40"
+          className="text-xs font-mono text-geo-cyan hover:text-cyan-300 flex items-center gap-2 transition-all duration-300 self-start sm:self-auto py-2 px-4 rounded-xl bg-geo-surface/80 border border-geo-border/60 hover:border-geo-cyan/40 hover:-translate-y-0.5"
         >
           <Sparkles className="w-3.5 h-3.5" />
           <span>Load Golden Sample</span>
@@ -89,7 +89,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       </div>
 
       {errorMessage && (
-        <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-800/40 text-rose-300 text-xs font-mono">
+        <div className="p-4 rounded-xl bg-rose-950/30 border border-rose-800/30 text-rose-300 text-xs font-mono">
           {errorMessage}
         </div>
       )}
@@ -101,10 +101,10 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
-          className={`border-2 border-dashed rounded-2xl p-8 sm:p-10 text-center cursor-pointer transition-all ${
+          className={`border-2 border-dashed rounded-2xl p-10 sm:p-14 text-center cursor-pointer transition-all duration-400 ${
             isDragging
-              ? 'border-geo-cyan bg-geo-cyan/5 shadow-geo-glow'
-              : 'border-geo-border hover:border-geo-border/80 hover:bg-geo-surface/50'
+              ? 'upload-zone-active border-geo-cyan scale-[1.01]'
+              : 'border-geo-border/60 hover:border-geo-border hover:bg-geo-surface/30'
           }`}
         >
           <input
@@ -114,29 +114,32 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
             className="hidden"
             onChange={handleFileInputChange}
           />
-          <div className="w-14 h-14 mx-auto mb-3.5 rounded-2xl bg-geo-surface border border-geo-border flex items-center justify-center text-geo-muted group-hover:text-geo-cyan">
-            <UploadCloud className="w-7 h-7 text-geo-cyan" />
+          <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-geo-surface/80 border border-geo-border/60 flex items-center justify-center animate-float">
+            <UploadCloud className="w-8 h-8 text-geo-cyan" />
           </div>
-          <p className="text-sm font-semibold text-geo-text">
-            Click to browse or drag & drop single RGB image
+          <p className="text-base font-semibold text-geo-text">
+            Click to browse or drag & drop
           </p>
-          <p className="text-xs text-geo-muted mt-1 font-mono">
+          <p className="text-sm text-geo-muted mt-2">
+            Single RGB image
+          </p>
+          <p className="text-xs text-geo-subtle mt-3 font-mono">
             Supported: PNG, JPG, JPEG, TIFF (Max 25MB)
           </p>
         </div>
       ) : (
-        <div className="space-y-4">
-          <div className="relative rounded-xl overflow-hidden border border-geo-border bg-geo-bg group">
+        <div className="space-y-6">
+          <div className="relative rounded-2xl overflow-hidden border border-geo-border/60 bg-geo-bg group">
             <img
               src={previewUrl}
               alt="Uploaded RGB preview"
-              className="w-full h-52 sm:h-60 object-cover object-center group-hover:scale-102 transition-transform duration-500"
+              className="w-full h-56 sm:h-64 object-cover object-center transition-transform duration-700 group-hover:scale-105"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-geo-bg/90 via-transparent to-transparent pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-t from-geo-bg/85 via-transparent to-transparent pointer-events-none" />
 
             {/* Overlay detail info */}
-            <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between">
-              <div className="flex items-center gap-2.5 overflow-hidden">
+            <div className="absolute bottom-4 left-5 right-5 flex items-center justify-between">
+              <div className="flex items-center gap-3 overflow-hidden">
                 <FileCheck className="w-4 h-4 text-geo-cyan shrink-0" />
                 <div className="truncate">
                   <p className="text-xs font-mono font-medium text-white truncate">
@@ -150,12 +153,12 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   title="Replace image"
                   disabled={isProcessing}
-                  className="p-2 rounded-lg bg-geo-surface/80 hover:bg-geo-elevated text-geo-text border border-geo-border transition-colors disabled:opacity-50"
+                  className="p-2.5 rounded-xl bg-geo-surface/80 hover:bg-geo-elevated text-geo-text border border-geo-border/60 transition-all duration-200 disabled:opacity-50 hover:-translate-y-0.5"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                 </button>
@@ -163,7 +166,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
                   onClick={onRemove}
                   title="Remove image"
                   disabled={isProcessing}
-                  className="p-2 rounded-lg bg-rose-950/70 hover:bg-rose-900 text-rose-300 border border-rose-800/60 transition-colors disabled:opacity-50"
+                  className="p-2.5 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/40 transition-all duration-200 disabled:opacity-50 hover:-translate-y-0.5"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -183,10 +186,10 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           <button
             onClick={onGenerate}
             disabled={isProcessing}
-            className={`w-full py-3.5 px-5 rounded-xl font-mono text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2.5 transition-all shadow-md ${
+            className={`btn-shimmer w-full py-4 px-6 rounded-xl font-mono text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-3 transition-all duration-300 shadow-md ${
               isProcessing
-                ? 'bg-geo-elevated text-amber-300 border border-amber-500/40 cursor-wait'
-                : 'bg-geo-cyan text-geo-bg hover:bg-cyan-400 shadow-geo-glow hover:shadow-[0_0_25px_rgba(6,182,212,0.35)]'
+                ? 'bg-geo-elevated text-amber-300 border border-amber-500/30 cursor-wait'
+                : 'bg-geo-cyan text-geo-bg hover:bg-cyan-400 shadow-geo-glow hover:shadow-geo-glow-lg hover:-translate-y-0.5'
             }`}
           >
             {isProcessing ? (

@@ -6,12 +6,13 @@ import {
   Box,
   Plane,
   Sparkles,
-  ArrowRight,
 } from 'lucide-react';
 import { generateSyntheticPreviewUrl } from '../../data/demoData';
+import { useScrollReveal } from '../../hooks/useScrollReveal';
 
 export const HowItWorks: React.FC = () => {
   const [activeStep, setActiveStep] = useState(0);
+  const sectionRef = useScrollReveal<HTMLElement>();
 
   const steps = [
     {
@@ -72,24 +73,30 @@ export const HowItWorks: React.FC = () => {
   ];
 
   return (
-    <section id="how-it-works" className="py-28 lg:py-36 bg-geo-bg-alt border-t border-geo-border/60">
+    <section id="how-it-works" ref={sectionRef} className="py-36 lg:py-48 bg-geo-bg-alt relative overflow-hidden">
+      {/* Section Top Divider */}
+      <div className="section-divider absolute top-0 left-0 right-0" />
+
+      {/* Ambient Background */}
+      <div className="absolute top-1/4 right-0 w-[600px] h-[500px] bg-teal-500/3 blur-[180px] rounded-full pointer-events-none" />
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Section Header with large breathing room */}
-        <div className="text-center max-w-3xl mx-auto space-y-5 mb-20">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-geo-surface text-geo-cyan border border-geo-border text-xs font-mono">
+        {/* Section Header */}
+        <div className="text-center max-w-3xl mx-auto space-y-6 mb-24">
+          <div className="reveal reveal-delay-1 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-geo-surface/70 text-geo-cyan border border-geo-border/60 text-xs font-mono backdrop-blur-md">
             <span>Sequential 4-Member Contract</span>
           </div>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white">
+          <h2 className="reveal reveal-delay-2 text-3xl sm:text-4xl lg:text-6xl font-extrabold tracking-tight text-white">
             How DepthWizard Works
           </h2>
-          <p className="text-base sm:text-lg text-slate-400 leading-relaxed font-normal">
+          <p className="reveal reveal-delay-3 text-base sm:text-lg lg:text-xl text-slate-400 leading-relaxed font-normal max-w-2xl mx-auto">
             From single-view optical pixels to a watertight 3D terrain flight — five sequential
             milestones governed by the integration contract.
           </p>
         </div>
 
-        {/* Milestone Cards Grid: Spacious 3-col/2-col instead of cramped 5-col */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {/* Milestone Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10">
           {steps.map((item, idx) => {
             const Icon = item.icon;
             const isSelected = activeStep === idx;
@@ -98,22 +105,22 @@ export const HowItWorks: React.FC = () => {
               <div
                 key={item.step}
                 onClick={() => setActiveStep(idx)}
-                className={`geo-panel rounded-3xl p-8 border cursor-pointer transition-all duration-300 flex flex-col justify-between space-y-6 ${
+                className={`reveal reveal-delay-${Math.min(idx + 2, 7)} geo-panel geo-panel-hover rounded-3xl p-8 lg:p-10 border cursor-pointer transition-all duration-400 flex flex-col justify-between space-y-8 ${
                   isSelected
-                    ? 'border-geo-cyan bg-geo-elevated shadow-geo-glow -translate-y-1'
-                    : 'border-geo-border/80 hover:border-geo-border hover:bg-geo-surface/80'
+                    ? 'border-geo-cyan/50 bg-geo-elevated/80 shadow-geo-glow-lg -translate-y-2 animate-border-glow'
+                    : 'border-geo-border/50 hover:border-geo-border/80'
                 }`}
               >
-                <div className="space-y-4">
+                <div className="space-y-5">
                   <div className="flex items-center justify-between">
-                    <span className="text-3xl font-extrabold font-mono text-slate-600">
+                    <span className="text-4xl font-extrabold font-mono text-slate-600/80">
                       {item.step}
                     </span>
                     <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center border ${
+                      className={`w-12 h-12 rounded-xl flex items-center justify-center border transition-all duration-300 ${
                         isSelected
-                          ? 'bg-geo-cyan/20 border-geo-cyan/40 text-geo-cyan'
-                          : 'bg-geo-surface border-geo-border text-slate-400'
+                          ? 'bg-geo-cyan/15 border-geo-cyan/40 text-geo-cyan shadow-geo-glow'
+                          : 'bg-geo-surface/80 border-geo-border/60 text-slate-400'
                       }`}
                     >
                       <Icon className="w-5 h-5" />
@@ -121,7 +128,7 @@ export const HowItWorks: React.FC = () => {
                   </div>
 
                   <div>
-                    <h3 className="text-lg font-bold text-white mb-1">
+                    <h3 className="text-xl font-bold text-white mb-1.5">
                       {item.title}
                     </h3>
                     <p className="text-xs font-mono text-geo-cyan">
@@ -134,7 +141,7 @@ export const HowItWorks: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="pt-5 border-t border-geo-border/60 space-y-1.5 text-xs font-mono">
+                <div className="pt-6 border-t border-geo-border/40 space-y-2 text-xs font-mono">
                   <div className="flex items-center justify-between text-slate-400">
                     <span>Role:</span>
                     <span className="text-white font-medium">{item.role.split('—')[0].trim()}</span>
@@ -148,17 +155,17 @@ export const HowItWorks: React.FC = () => {
             );
           })}
 
-          {/* 6th Card: Pipeline Guarantee / Contract Callout */}
-          <div className="geo-panel rounded-3xl p-8 border border-geo-border/80 bg-geo-surface/50 flex flex-col justify-between space-y-6">
-            <div className="space-y-4">
+          {/* 6th Card: Pipeline Guarantee */}
+          <div className="reveal reveal-delay-7 geo-panel geo-panel-hover rounded-3xl p-8 lg:p-10 border border-geo-border/50 bg-geo-surface/40 flex flex-col justify-between space-y-8">
+            <div className="space-y-5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-bold px-3 py-1 rounded-full bg-geo-surface text-geo-cyan border border-geo-border">
+                <span className="text-xs font-mono font-bold px-3.5 py-1.5 rounded-full bg-geo-surface/80 text-geo-cyan border border-geo-border/60">
                   Single System
                 </span>
-                <Sparkles className="w-5 h-5 text-geo-cyan" />
+                <Sparkles className="w-5 h-5 text-geo-cyan animate-float" />
               </div>
 
-              <h3 className="text-lg font-bold text-white">
+              <h3 className="text-xl font-bold text-white">
                 One Cohesive Pipeline
               </h3>
               <p className="text-sm text-slate-300 leading-relaxed">
@@ -167,27 +174,30 @@ export const HowItWorks: React.FC = () => {
               </p>
             </div>
 
-            <div className="p-4 rounded-xl bg-geo-bg border border-geo-border text-xs font-mono text-slate-400 space-y-1">
+            <div className="p-5 rounded-xl bg-geo-bg/80 border border-geo-border/40 text-xs font-mono text-slate-400 space-y-2">
               <p className="text-white font-semibold">Golden Pipeline Test:</p>
-              <p className="text-geo-cyan">RGB → Depth → DSM → 3D → Flight</p>
+              <p className="text-geo-cyan text-sm">RGB → Depth → DSM → 3D → Flight</p>
             </div>
           </div>
         </div>
 
-        {/* Spacious Interactive Deep-Dive Preview Box */}
-        <div className="mt-16 lg:mt-20 geo-panel rounded-3xl p-8 sm:p-12 border border-geo-border/80 bg-geo-surface/60 flex flex-col lg:flex-row items-center gap-10">
-          <div className="flex-1 space-y-4 text-left">
+        {/* Deep-Dive Preview Box */}
+        <div className="reveal-scale reveal-delay-5 mt-20 lg:mt-28 geo-panel rounded-3xl p-10 sm:p-14 border border-geo-border/50 bg-geo-surface/40 flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
+          <div className="flex-1 space-y-5 text-left">
             <div className="inline-flex items-center gap-2 text-xs font-mono text-geo-cyan">
               <Sparkles className="w-4 h-4" />
               <span>Step {steps[activeStep].step} Deep Dive</span>
             </div>
-            <h3 className="text-2xl sm:text-3xl font-bold text-white">
-              {steps[activeStep].title}: {steps[activeStep].subtitle}
+            <h3 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white leading-tight">
+              {steps[activeStep].title}:
+              <span className="block text-xl sm:text-2xl text-slate-300 font-normal mt-1">
+                {steps[activeStep].subtitle}
+              </span>
             </h3>
             <p className="text-base text-slate-300 leading-relaxed">
               {steps[activeStep].desc}
             </p>
-            <div className="flex flex-wrap items-center gap-6 text-xs font-mono pt-3 border-t border-geo-border/60">
+            <div className="flex flex-wrap items-center gap-8 text-xs font-mono pt-5 border-t border-geo-border/40">
               <div>
                 <span className="text-slate-400">Component Owner: </span>
                 <span className="text-white font-bold">{steps[activeStep].role}</span>
@@ -199,14 +209,14 @@ export const HowItWorks: React.FC = () => {
             </div>
           </div>
 
-          <div className="w-full lg:w-80 h-48 rounded-2xl overflow-hidden border border-geo-border bg-geo-bg shrink-0 shadow-lg relative">
+          <div className="w-full lg:w-96 h-56 rounded-2xl overflow-hidden border border-geo-border/40 bg-geo-bg shrink-0 shadow-geo-elevated relative group">
             <img
               src={generateSyntheticPreviewUrl(steps[activeStep].previewType)}
               alt="Stage Preview"
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-geo-bg/85 via-transparent to-transparent pointer-events-none" />
-            <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between text-xs font-mono text-white">
+            <div className="absolute inset-0 bg-gradient-to-t from-geo-bg/80 via-transparent to-transparent pointer-events-none" />
+            <div className="absolute bottom-4 left-5 right-5 flex items-center justify-between text-xs font-mono text-white">
               <span>{steps[activeStep].tag}</span>
             </div>
           </div>

@@ -1,14 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Image as ImageIcon,
   Mountain,
   Layers,
   Box,
   Download,
-  FileCode,
-  CheckCircle2,
   AlertCircle,
-  ExternalLink,
 } from 'lucide-react';
 import { PipelineOutputs } from '../types';
 
@@ -91,21 +88,21 @@ export const ResultCards: React.FC<ResultCardsProps> = ({
   const currentTab = tabs.find((t) => t.id === selectedStage) || tabs[0];
 
   return (
-    <div className="geo-panel rounded-2xl p-6 sm:p-8 border border-geo-border space-y-6">
+    <div className="geo-panel rounded-3xl p-8 sm:p-10 border border-geo-border/50 space-y-8">
       {/* Header & Tabs */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-geo-border/60">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 pb-5 border-b border-geo-border/40">
         <div>
-          <h3 className="text-sm font-bold tracking-wide text-geo-text flex items-center gap-2">
-            <Layers className="w-4 h-4 text-geo-cyan" />
+          <h3 className="text-base font-bold tracking-wide text-geo-text flex items-center gap-2.5">
+            <Layers className="w-5 h-5 text-geo-cyan" />
             Pipeline Output Artifacts
           </h3>
-          <p className="text-xs text-geo-muted mt-0.5">
+          <p className="text-xs text-geo-muted mt-1.5">
             Detailed inspection of contract deliverables generated in outputs/
           </p>
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-geo-bg border border-geo-border">
+        <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-xl bg-geo-bg/80 border border-geo-border/40">
           {tabs.map((tab) => {
             const isSelected = selectedStage === tab.id;
             const Icon = tab.icon;
@@ -114,10 +111,10 @@ export const ResultCards: React.FC<ResultCardsProps> = ({
               <button
                 key={tab.id}
                 onClick={() => onSelectViewStage(tab.id)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono transition-all ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-mono transition-all duration-300 ${
                   isSelected
-                    ? 'bg-geo-elevated text-geo-text border border-geo-border font-bold shadow-sm'
-                    : 'text-geo-muted hover:text-geo-text'
+                    ? 'bg-geo-elevated/80 text-geo-text border border-geo-border/60 font-bold shadow-sm'
+                    : 'text-geo-muted hover:text-geo-text hover:bg-geo-surface/50'
                 }`}
               >
                 <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-geo-cyan' : 'text-geo-subtle'}`} />
@@ -129,41 +126,41 @@ export const ResultCards: React.FC<ResultCardsProps> = ({
       </div>
 
       {/* Active Tab Detailed View */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-        {/* Left: Large Visual Preview Box */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
+        {/* Left: Large Visual Preview */}
         <div className="lg:col-span-7">
-          <div className="relative w-full h-72 sm:h-80 rounded-xl overflow-hidden border border-geo-border bg-geo-bg flex items-center justify-center group">
+          <div className="relative w-full h-72 sm:h-80 lg:h-96 rounded-2xl overflow-hidden border border-geo-border/40 bg-geo-bg flex items-center justify-center group">
             {currentTab.src ? (
               <img
                 src={currentTab.src}
                 alt={currentTab.label}
-                className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500"
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               />
             ) : currentTab.id === '3d' ? (
-              <div className="text-center p-6 space-y-2">
-                <Box className="w-12 h-12 mx-auto text-geo-cyan animate-pulse" />
-                <p className="text-sm font-bold text-geo-text">
+              <div className="text-center p-8 space-y-3">
+                <Box className="w-14 h-14 mx-auto text-geo-cyan animate-float" />
+                <p className="text-base font-bold text-geo-text">
                   3D Watertight Terrain Mesh
                 </p>
-                <p className="text-xs text-geo-muted max-w-sm">
+                <p className="text-sm text-geo-muted max-w-sm mx-auto leading-relaxed">
                   The interactive 3D terrain model is live in the main viewer above. You can also download the binary GLB file below.
                 </p>
               </div>
             ) : (
-              <div className="text-center p-6 space-y-1 text-geo-muted font-mono text-xs">
-                <AlertCircle className="w-6 h-6 mx-auto text-geo-subtle" />
-                <p className="font-semibold text-geo-text">Not Available Yet</p>
+              <div className="text-center p-8 space-y-2 text-geo-muted font-mono text-xs">
+                <AlertCircle className="w-8 h-8 mx-auto text-geo-subtle" />
+                <p className="font-semibold text-geo-text text-sm">Not Available Yet</p>
                 <p className="text-[11px] text-geo-subtle">{currentTab.filename}</p>
               </div>
             )}
 
-            {/* Availability status badge */}
-            <div className="absolute top-3 left-3 z-10">
+            {/* Availability badge */}
+            <div className="absolute top-4 left-4 z-10">
               <span
-                className={`text-[10px] font-mono px-2.5 py-1 rounded-full border backdrop-blur-md ${
+                className={`text-[10px] font-mono px-3 py-1.5 rounded-full border backdrop-blur-md ${
                   currentTab.available
-                    ? 'bg-geo-surface/90 text-emerald-300 border-emerald-500/30'
-                    : 'bg-geo-surface/90 text-geo-muted border-geo-border'
+                    ? 'bg-geo-surface/80 text-emerald-300 border-emerald-500/25'
+                    : 'bg-geo-surface/80 text-geo-muted border-geo-border/60'
                 }`}
               >
                 {currentTab.available ? '✓ Contract Output Available' : '○ Standby / Demo Fallback'}
@@ -172,21 +169,21 @@ export const ResultCards: React.FC<ResultCardsProps> = ({
           </div>
         </div>
 
-        {/* Right: Technical Metadata & Artifact Actions */}
-        <div className="lg:col-span-5 space-y-5">
+        {/* Right: Technical Metadata */}
+        <div className="lg:col-span-5 space-y-6">
           <div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-geo-surface text-geo-cyan border border-geo-border">
+            <span className="text-[10px] font-mono px-2.5 py-1 rounded-lg bg-geo-surface/80 text-geo-cyan border border-geo-border/60">
               Step {currentTab.step} Artifact
             </span>
-            <h4 className="text-lg font-bold text-geo-text mt-2">
+            <h4 className="text-xl font-bold text-geo-text mt-3">
               {currentTab.label}
             </h4>
-            <p className="text-xs text-geo-muted leading-relaxed mt-1">
+            <p className="text-sm text-geo-muted leading-relaxed mt-2">
               {currentTab.desc}
             </p>
           </div>
 
-          <div className="space-y-2.5 p-4 rounded-xl bg-geo-surface/50 border border-geo-border text-xs font-mono">
+          <div className="space-y-3 p-5 rounded-xl bg-geo-surface/40 border border-geo-border/40 text-xs font-mono">
             <div className="flex items-center justify-between">
               <span className="text-geo-subtle">Output Path:</span>
               <span className="text-geo-text font-bold truncate max-w-[200px]">
@@ -207,13 +204,13 @@ export const ResultCards: React.FC<ResultCardsProps> = ({
             <a
               href={currentTab.downloadUrl}
               download={currentTab.downloadName}
-              className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-geo-elevated hover:bg-geo-border text-geo-text border border-geo-border font-mono text-xs font-medium transition-colors shadow-sm"
+              className="inline-flex items-center justify-center gap-2.5 w-full py-3 px-5 rounded-xl bg-geo-elevated/80 hover:bg-geo-border text-geo-text border border-geo-border/60 font-mono text-xs font-medium transition-all duration-300 shadow-sm hover:-translate-y-0.5"
             >
               <Download className="w-3.5 h-3.5 text-geo-cyan" />
               <span>Download {currentTab.downloadName}</span>
             </a>
           ) : (
-            <div className="text-center py-2 px-3 rounded-lg bg-geo-surface text-geo-subtle text-xs font-mono border border-geo-border">
+            <div className="text-center py-3 px-4 rounded-xl bg-geo-surface/40 text-geo-subtle text-xs font-mono border border-geo-border/40">
               Artifact generated during active pipeline run
             </div>
           )}

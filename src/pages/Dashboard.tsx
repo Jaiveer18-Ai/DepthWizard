@@ -236,7 +236,7 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-geo-bg text-geo-text flex flex-col font-sans selection:bg-geo-cyan/20 selection:text-geo-cyan">
+    <div className="min-h-screen bg-geo-bg text-geo-text flex flex-col font-sans selection:bg-geo-cyan/20 selection:text-geo-cyan noise-overlay">
       {/* Sticky Header Navbar */}
       <Navbar
         status={systemStatus}
