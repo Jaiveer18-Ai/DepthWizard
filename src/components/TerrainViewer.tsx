@@ -1,5 +1,5 @@
 import React, { Suspense, useRef, useState, useMemo } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, useGLTF } from './ThreeControls';
 import * as THREE from 'three';
 import { TerrainPointInspection } from '../types';
@@ -194,16 +194,119 @@ function ProceduralDemoTerrain({
 }
 
 /**
- * Camera Controller supporting Flythrough & Orbit
+ * SceneFitter: Wraps children in a group, uses useFrame to poll for geometry,
+ * then computes proper camera framing based on actual bounding box.
+ * This solves the async GLB loading timing issue — the old AutoFit used
+ * requestAnimationFrame which ran before the async GLB was loaded.
+ */
+function SceneFitter({ children, onFit, onDebugInfo }: { children: React.ReactNode, onFit: (center: THREE.Vector3, radius: number) => void, onDebugInfo: (info: any) => void }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const { camera, gl } = useThree();
+  const fitted = useRef(false);
+
+  useFrame(() => {
+    if (fitted.current || !groupRef.current) return;
+
+    const box = new THREE.Box3().setFromObject(groupRef.current);
+    if (box.isEmpty()) return; // Model not loaded yet — keep polling
+
+    // Wait until the canvas has reasonable dimensions (not collapsed)
+    // to ensure correct aspect ratio for camera computation
+    if (gl.domElement.height < 200) return;
+
+    // Model is ready and canvas is properly sized — compute framing
+    fitted.current = true;
+
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+
+    const size = new THREE.Vector3();
+    box.getSize(size);
+
+    const sphere = new THREE.Sphere();
+    box.getBoundingSphere(sphere);
+    const radius = sphere.radius;
+
+    const perspCam = camera as THREE.PerspectiveCamera;
+    const fovRad = perspCam.fov * (Math.PI / 180);
+    const aspect = perspCam.aspect;
+
+    // Calculate the camera distance needed to fit the model in view.
+    // We need to consider both the vertical and horizontal FOV to ensure
+    // the entire model fits regardless of aspect ratio.
+    const fovH = 2 * Math.atan(Math.tan(fovRad / 2) * aspect);
+    
+    // Distance needed so the bounding sphere fits in the vertical FOV
+    const distV = radius / Math.sin(fovRad / 2);
+    // Distance needed so the bounding sphere fits in the horizontal FOV
+    const distH = radius / Math.sin(fovH / 2);
+    // Take the larger distance to ensure full fit
+    let cameraDist = Math.max(distV, distH);
+
+    // Apply padding so the terrain fills ~70% of viewport rather than 100%
+    cameraDist *= 1.15;
+
+    // Position camera at an isometric-like angle above and behind the center
+    // This gives a natural terrain viewing angle
+    const camX = center.x + cameraDist * 0.25;
+    const camY = center.y + cameraDist * 0.6;  // Y is up — elevate significantly
+    const camZ = center.z + cameraDist * 0.7;
+
+    perspCam.position.set(camX, camY, camZ);
+    perspCam.lookAt(center);
+
+    // Set near/far based on model dimensions to avoid clipping
+    perspCam.near = Math.max(0.1, cameraDist * 0.01);
+    perspCam.far = cameraDist * 10;
+    perspCam.updateProjectionMatrix();
+
+    const debugInfo = {
+      min: box.min.toArray(),
+      max: box.max.toArray(),
+      size: size.toArray(),
+      center: center.toArray(),
+      radius,
+      cameraPos: perspCam.position.toArray(),
+      cameraDist,
+      fov: fovRad,
+      aspect,
+      canvasWidth: gl.domElement.width,
+      canvasHeight: gl.domElement.height,
+      devicePixelRatio: window.devicePixelRatio,
+    };
+
+    console.log('[SceneFitter] Model detected and camera fitted:', debugInfo);
+
+    onDebugInfo(debugInfo);
+    onFit(center, radius);
+  });
+
+  return (
+    <group ref={groupRef}>{children}</group>
+  );
+}
+
+/**
+ * Camera Controller supporting Flythrough & Orbit.
+ * OrbitControls min/max distance is set dynamically based on model radius.
  */
 function CameraController({
   isFlythrough,
   flythroughSpeed,
+  target,
+  modelRadius,
 }: {
   isFlythrough: boolean;
   flythroughSpeed: number;
+  target: [number, number, number];
+  modelRadius: number;
 }) {
   const controlsRef = useRef<any>(null);
+
+  // Compute dynamic distance limits based on model size
+  // modelRadius 0 means not yet measured — use generous defaults
+  const minDist = modelRadius > 0 ? modelRadius * 0.2 : 1;
+  const maxDist = modelRadius > 0 ? modelRadius * 8 : 50000;
 
   useFrame(() => {
     if (isFlythrough && controlsRef.current) {
@@ -221,8 +324,9 @@ function CameraController({
       enableDamping
       dampingFactor={0.06}
       maxPolarAngle={Math.PI / 2 - 0.05}
-      minDistance={4}
-      maxDistance={80}
+      minDistance={minDist}
+      maxDistance={maxDist}
+      target={target}
     />
   );
 }
@@ -242,6 +346,14 @@ export const TerrainViewer: React.FC<TerrainViewerProps> = ({
   inspectedPoint,
 }) => {
   const [hasGlbError, setHasGlbError] = useState(false);
+  const [target, setTarget] = useState<[number, number, number]>([0, 0, 0]);
+  const [debugData, setDebugData] = useState<any>(null);
+  const [modelRadius, setModelRadius] = useState(0);
+
+  const handleFit = React.useCallback((center: THREE.Vector3, radius: number) => {
+    setTarget([center.x, center.y, center.z]);
+    setModelRadius(radius);
+  }, []);
 
   const handlePointerDown = (e: any) => {
     e.stopPropagation();
@@ -264,7 +376,29 @@ export const TerrainViewer: React.FC<TerrainViewerProps> = ({
   };
 
   return (
-    <div className="relative w-full h-full min-h-[600px] lg:min-h-[720px] xl:min-h-[780px] rounded-3xl overflow-hidden border border-geo-border bg-geo-bg shadow-geo-elevated">
+    <div className="relative w-full h-[600px] lg:h-[720px] xl:h-[780px] rounded-3xl overflow-hidden border border-geo-border bg-geo-bg shadow-geo-elevated">
+      {debugData && (
+        <div className="absolute top-16 left-4 z-50 p-4 bg-black/80 text-green-400 font-mono text-[10px] whitespace-pre rounded border border-green-500/30 max-h-[80%] overflow-y-auto pointer-events-none">
+          <div>MODEL SIZE:</div>
+          <div>X = {debugData.size[0].toFixed(2)}</div>
+          <div>Y = {debugData.size[1].toFixed(2)}</div>
+          <div>Z = {debugData.size[2].toFixed(2)}</div>
+          <div className="mt-2">MODEL CENTER:</div>
+          <div>X = {debugData.center[0].toFixed(2)}</div>
+          <div>Y = {debugData.center[1].toFixed(2)}</div>
+          <div>Z = {debugData.center[2].toFixed(2)}</div>
+          <div className="mt-2">CAMERA:</div>
+          <div>position = {debugData.cameraPos.map((v:any) => v.toFixed(2)).join(', ')}</div>
+          <div>FOV = {(debugData.fov * 180 / Math.PI).toFixed(1)}°</div>
+          <div>aspect = {debugData.aspect.toFixed(2)}</div>
+          <div>dist = {debugData.cameraDist?.toFixed(1)}</div>
+          <div className="mt-2">CANVAS:</div>
+          <div>width = {debugData.canvasWidth}</div>
+          <div>height = {debugData.canvasHeight}</div>
+          <div>dpr = {debugData.devicePixelRatio}</div>
+          <div className="mt-2">RADIUS: {debugData.radius?.toFixed(1)}</div>
+        </div>
+      )}
       {/* Subtle Technical Terrain Status Badge */}
       <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
         {isRealData && glbUrl && !hasGlbError ? (
@@ -337,60 +471,64 @@ export const TerrainViewer: React.FC<TerrainViewerProps> = ({
       ) : (
         <Canvas
           shadows
-          camera={{ position: [18, 14, 22], fov: 45 }}
-          className="w-full h-full cursor-grab active:cursor-grabbing bg-geo-bg"
+          camera={{ position: [200, 400, 600], fov: 45, near: 0.1, far: 50000 }}
+          className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing bg-geo-bg"
         >
           <ambientLight intensity={0.45} />
           <directionalLight
-            position={[25, 35, 15]}
+            position={[500, 700, 300]}
             intensity={sunIntensity * 1.6}
             castShadow
             shadow-mapSize={[2048, 2048]}
             shadow-bias={-0.0001}
           />
-          <directionalLight position={[-20, 15, -15]} intensity={0.3} color="#60a5fa" />
+          <directionalLight position={[-400, 300, -300]} intensity={0.3} color="#60a5fa" />
           <hemisphereLight args={['#38bdf8', '#0b1728', 0.4]} />
 
           {showGrid && (
             <gridHelper
-              args={[36, 36, '#06b6d4', '#1e314b']}
-              position={[0, -0.05, 0]}
+              args={[600, 30, '#06b6d4', '#1e314b']}
+              position={[255, -0.5, 255]}
             />
           )}
 
           <Suspense fallback={null}>
-            {isRealData && glbUrl && !hasGlbError ? (
-              <ModelErrorBoundary
-                onError={() => setHasGlbError(true)}
-                fallback={
-                  <ProceduralDemoTerrain
+            <SceneFitter onFit={handleFit} onDebugInfo={setDebugData}>
+              {isRealData && glbUrl && !hasGlbError ? (
+                <ModelErrorBoundary
+                  onError={() => setHasGlbError(true)}
+                  fallback={
+                    <ProceduralDemoTerrain
+                      isWireframe={isWireframe}
+                      verticalScale={verticalScale}
+                      colorMode={colorMode}
+                      onPointerDown={handlePointerDown}
+                    />
+                  }
+                >
+                  <RealTerrainModel
+                    url={glbUrl}
                     isWireframe={isWireframe}
                     verticalScale={verticalScale}
-                    colorMode={colorMode}
                     onPointerDown={handlePointerDown}
                   />
-                }
-              >
-                <RealTerrainModel
-                  url={glbUrl}
+                </ModelErrorBoundary>
+              ) : (
+                <ProceduralDemoTerrain
                   isWireframe={isWireframe}
                   verticalScale={verticalScale}
+                  colorMode={colorMode}
                   onPointerDown={handlePointerDown}
                 />
-              </ModelErrorBoundary>
-            ) : (
-              <ProceduralDemoTerrain
-                isWireframe={isWireframe}
-                verticalScale={verticalScale}
-                colorMode={colorMode}
-                onPointerDown={handlePointerDown}
-              />
-            )}
+              )}
+            </SceneFitter>
           </Suspense>
 
           <CameraController
             isFlythrough={isFlythrough}
             flythroughSpeed={flythroughSpeed}
+            target={target}
+            modelRadius={modelRadius}
           />
         </Canvas>
       )}
