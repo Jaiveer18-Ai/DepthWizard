@@ -9,6 +9,8 @@ import {
   Eye,
   Sliders,
   Sun,
+  Layers,
+  MoreVertical,
 } from 'lucide-react';
 
 interface TerrainControlsProps {
@@ -27,6 +29,8 @@ interface TerrainControlsProps {
   onToggleColorMode: () => void;
   sunIntensity: number;
   onChangeSunIntensity: (val: number) => void;
+  displayMode: 'mesh' | 'points';
+  onToggleDisplayMode: (mode: 'mesh' | 'points') => void;
 }
 
 export const TerrainControls: React.FC<TerrainControlsProps> = ({
@@ -45,11 +49,14 @@ export const TerrainControls: React.FC<TerrainControlsProps> = ({
   onToggleColorMode,
   sunIntensity,
   onChangeSunIntensity,
+  displayMode,
+  onToggleDisplayMode,
 }) => {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-geo-surface/90 border border-geo-border backdrop-blur-md text-xs font-mono">
-      {/* Primary Action Buttons */}
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-col gap-3 p-3 rounded-2xl bg-geo-surface/90 border border-geo-border backdrop-blur-md text-xs font-mono">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* Primary Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2">
         <button
           onClick={onResetView}
           title="Reset Camera to default perspective"
@@ -144,13 +151,36 @@ export const TerrainControls: React.FC<TerrainControlsProps> = ({
           />
         </div>
 
-        {/* Fullscreen */}
+          {/* Fullscreen */}
+          <button
+            onClick={onToggleFullscreen}
+            title={isFullscreen ? 'Exit Fullscreen' : 'Expand 3D Viewer Fullscreen'}
+            className="p-2 rounded-lg bg-geo-elevated hover:bg-geo-border text-geo-muted hover:text-white border border-geo-border transition-colors"
+          >
+            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          </button>
+        </div>
+      </div>
+      
+      {/* Display Mode Segmented Control */}
+      <div className="flex items-center gap-1 p-1 bg-geo-bg border border-geo-border rounded-lg self-start">
         <button
-          onClick={onToggleFullscreen}
-          title={isFullscreen ? 'Exit Fullscreen' : 'Expand 3D Viewer Fullscreen'}
-          className="p-2 rounded-lg bg-geo-elevated hover:bg-geo-border text-geo-muted hover:text-white border border-geo-border transition-colors"
+          onClick={() => onToggleDisplayMode('mesh')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all ${
+            displayMode === 'mesh' ? 'bg-geo-cyan/20 text-geo-cyan shadow-sm' : 'text-geo-muted hover:text-geo-text'
+          }`}
         >
-          {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          <Layers className="w-3.5 h-3.5" />
+          <span>TERRAIN MESH</span>
+        </button>
+        <button
+          onClick={() => onToggleDisplayMode('points')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all ${
+            displayMode === 'points' ? 'bg-geo-cyan/20 text-geo-cyan shadow-sm' : 'text-geo-muted hover:text-geo-text'
+          }`}
+        >
+          <MoreVertical className="w-3.5 h-3.5" />
+          <span>POINT CLOUD</span>
         </button>
       </div>
     </div>

@@ -104,13 +104,7 @@ export const HeroSection: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Centered Editorial Narrative */}
         <div className="text-center max-w-4xl mx-auto space-y-10">
-          {/* Pill Badge */}
-          <div className="reveal reveal-delay-1">
-            <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-geo-surface/70 border border-geo-border/80 text-xs font-mono text-geo-cyan shadow-sm backdrop-blur-md">
-              <Sparkles className="w-3.5 h-3.5 text-geo-cyan animate-subtle-pulse" />
-              <span>SIH 2026 • Problem Statement 26175</span>
-            </div>
-          </div>
+
 
           {/* Large Hero Heading */}
           <div className="reveal reveal-delay-2">

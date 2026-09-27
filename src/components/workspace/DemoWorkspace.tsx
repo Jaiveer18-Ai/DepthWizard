@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { ImageUploader } from '../ImageUploader';
 import { ProcessingPipeline } from '../ProcessingPipeline';
-import { TerrainViewer } from '../TerrainViewer';
+import { TerrainViewer, TerrainViewerRef } from '../TerrainViewer';
 import { TerrainControls } from '../TerrainControls';
 import { ResultCards } from '../ResultCards';
 import { AnalysisPanel } from '../AnalysisPanel';
@@ -58,9 +58,11 @@ interface DemoWorkspaceProps {
   handleResetCamera: () => void;
 
   selectedStage: 'rgb' | 'depth' | 'dsm' | '3d';
-  setSelectedStage: (stage: 'rgb' | 'depth' | 'dsm' | '3d') => void;
+  setSelectedStage: React.Dispatch<React.SetStateAction<'rgb' | 'depth' | 'dsm' | '3d'>>;
 
   metadata: TerrainMetadata;
+  displayMode: 'mesh' | 'points';
+  setDisplayMode: React.Dispatch<React.SetStateAction<'mesh' | 'points'>>;
 }
 
 export const DemoWorkspace: React.FC<DemoWorkspaceProps> = ({
@@ -107,9 +109,21 @@ export const DemoWorkspace: React.FC<DemoWorkspaceProps> = ({
   setSelectedStage,
 
   metadata,
+  displayMode,
+  setDisplayMode,
 }) => {
   const viewerContainerRef = useRef<HTMLDivElement>(null);
   const sectionRef = useScrollReveal<HTMLElement>();
+  const terrainViewerRef = useRef<TerrainViewerRef>(null);
+
+  const handleLocalReset = () => {
+    setVerticalScale(1.2);
+    setSunIntensity(1.0);
+    handleResetCamera();
+    if (terrainViewerRef.current) {
+      terrainViewerRef.current.resetCamera();
+    }
+  };
 
   return (
     <section id="demo-workspace" ref={sectionRef} className="py-36 lg:py-48 bg-geo-bg relative overflow-hidden">
@@ -193,7 +207,7 @@ export const DemoWorkspace: React.FC<DemoWorkspaceProps> = ({
         </div>
 
         {/* 3D Terrain Viewer */}
-        <div className="reveal-scale reveal-delay-3 space-y-8 pt-4">
+        <div id="terrain-viewer" className="reveal-scale reveal-delay-3 space-y-8 pt-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-geo-border/40">
             <div className="flex items-center gap-4">
               <span className="w-3 h-3 rounded-full bg-geo-cyan animate-pulse shadow-[0_0_12px_rgba(6,182,212,0.8)]" />
@@ -213,6 +227,7 @@ export const DemoWorkspace: React.FC<DemoWorkspaceProps> = ({
             {/* Viewer Canvas Container */}
             <div className="relative w-full gradient-border rounded-2xl animate-pulse-glow">
               <TerrainViewer
+                ref={terrainViewerRef}
                 glbUrl={outputs.terrainGlb}
                 htmlUrl={outputs.terrainHtml}
                 isRealData={!isDemoMode && outputs.isRealData}
@@ -225,6 +240,7 @@ export const DemoWorkspace: React.FC<DemoWorkspaceProps> = ({
                 flythroughSpeed={flythroughSpeed}
                 onInspectPoint={setInspectedPoint}
                 inspectedPoint={inspectedPoint}
+                displayMode={displayMode}
               />
 
               {/* Flythrough overlay */}
@@ -238,7 +254,7 @@ export const DemoWorkspace: React.FC<DemoWorkspaceProps> = ({
 
             {/* 3D Viewer Toolbar */}
             <TerrainControls
-              onResetView={handleResetCamera}
+              onResetView={handleLocalReset}
               isFlythrough={isFlythrough}
               onToggleFlythrough={() => setIsFlythrough((v) => !v)}
               showGrid={showGrid}
@@ -250,11 +266,11 @@ export const DemoWorkspace: React.FC<DemoWorkspaceProps> = ({
               verticalScale={verticalScale}
               onChangeVerticalScale={setVerticalScale}
               colorMode={colorMode}
-              onToggleColorMode={() =>
-                setColorMode((m) => (m === 'texture' ? 'elevation' : 'texture'))
-              }
+              onToggleColorMode={() => setColorMode((v) => (v === 'texture' ? 'elevation' : 'texture'))}
               sunIntensity={sunIntensity}
               onChangeSunIntensity={setSunIntensity}
+              displayMode={displayMode}
+              onToggleDisplayMode={(mode) => setDisplayMode(mode)}
             />
           </div>
         </div>

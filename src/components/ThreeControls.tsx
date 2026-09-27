@@ -14,6 +14,7 @@ export interface OrbitControlsProps {
   maxPolarAngle?: number;
   minDistance?: number;
   maxDistance?: number;
+  target?: [number, number, number];
 }
 
 export const OrbitControls = React.forwardRef<any, OrbitControlsProps>((props, ref) => {
@@ -30,6 +31,7 @@ export const OrbitControls = React.forwardRef<any, OrbitControlsProps>((props, r
     if (props.maxPolarAngle !== undefined) ctrl.maxPolarAngle = props.maxPolarAngle;
     if (props.minDistance !== undefined) ctrl.minDistance = props.minDistance;
     if (props.maxDistance !== undefined) ctrl.maxDistance = props.maxDistance;
+    if (props.target !== undefined) ctrl.target.set(props.target[0], props.target[1], props.target[2]);
     return ctrl;
   }, [camera, gl.domElement]);
 
@@ -44,6 +46,7 @@ export const OrbitControls = React.forwardRef<any, OrbitControlsProps>((props, r
     if (props.maxPolarAngle !== undefined) controls.maxPolarAngle = props.maxPolarAngle;
     if (props.minDistance !== undefined) controls.minDistance = props.minDistance;
     if (props.maxDistance !== undefined) controls.maxDistance = props.maxDistance;
+    if (props.target !== undefined) controls.target.set(props.target[0], props.target[1], props.target[2]);
   }, [props, controls]);
 
   useFrame(() => {

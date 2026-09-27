@@ -94,9 +94,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="font-bold text-base tracking-tight text-geo-text group-hover:text-white transition-colors">
                 DepthWizard
               </span>
-              <span className="hidden sm:inline-block text-[10px] font-mono font-medium px-2.5 py-0.5 rounded-full bg-geo-surface/80 text-geo-cyan border border-geo-border/60">
-                SIH 2026 • PS 26175
-              </span>
+
             </div>
             <p className="text-[11px] text-geo-muted hidden md:block">
               Single-View Height Estimation & 3D Flythrough

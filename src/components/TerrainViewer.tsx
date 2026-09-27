@@ -1,11 +1,11 @@
-import React, { Suspense, useRef, useState, useMemo } from 'react';
+import React, { Suspense, useRef, useState, useMemo, forwardRef, useImperativeHandle, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, useGLTF } from './ThreeControls';
 import * as THREE from 'three';
 import { TerrainPointInspection } from '../types';
 import { MapPin } from 'lucide-react';
 
-interface TerrainViewerProps {
+export interface TerrainViewerProps {
   glbUrl: string | null;
   htmlUrl: string | null;
   isRealData: boolean;
@@ -18,6 +18,11 @@ interface TerrainViewerProps {
   flythroughSpeed: number;
   onInspectPoint: (point: TerrainPointInspection | null) => void;
   inspectedPoint: TerrainPointInspection | null;
+  displayMode: 'mesh' | 'points';
+}
+
+export interface TerrainViewerRef {
+  resetCamera: () => void;
 }
 
 /**
@@ -54,31 +59,112 @@ function RealTerrainModel({
   isWireframe,
   verticalScale,
   onPointerDown,
+  displayMode,
+  colorMode,
 }: {
   url: string;
   isWireframe: boolean;
   verticalScale: number;
   onPointerDown: (e: any) => void;
+  displayMode?: 'mesh' | 'points';
+  colorMode?: 'texture' | 'elevation';
 }) {
   const { scene } = useGLTF(url);
 
   const clonedScene = useMemo(() => {
     const clone = scene.clone();
+    
+    if (displayMode === 'points') {
+      const meshesToReplace: {parent: any, oldMesh: any, newPts: any}[] = [];
+      clone.traverse((child: any) => {
+        if (child.isMesh && child.geometry) {
+          const mat = new THREE.PointsMaterial({
+            size: 0.5, // Increased point size for visibility
+            vertexColors: child.geometry.hasAttribute('color'),
+            color: child.geometry.hasAttribute('color') ? 0xffffff : 0x06b6d4,
+            sizeAttenuation: true,
+          });
+          const pts = new THREE.Points(child.geometry, mat);
+          pts.position.copy(child.position);
+          pts.rotation.copy(child.rotation);
+          pts.scale.copy(child.scale);
+          if (child.parent) {
+            meshesToReplace.push({parent: child.parent, oldMesh: child, newPts: pts});
+          }
+        }
+      });
+      meshesToReplace.forEach(({parent, oldMesh, newPts}) => {
+        parent.remove(oldMesh);
+        parent.add(newPts);
+      });
+      return clone;
+    }
+
     clone.traverse((child: any) => {
       if (child.isMesh) {
         child.material = child.material.clone();
+        
+        if (colorMode === 'elevation') {
+          // Compute vertex colors based on height if not already computed
+          if (!child.geometry.attributes.color) {
+            const pos = child.geometry.attributes.position;
+            const colors = new Float32Array(pos.count * 3);
+            
+            let minZ = Infinity;
+            let maxZ = -Infinity;
+            for (let i = 0; i < pos.count; i++) {
+              const z = pos.getZ(i);
+              if (z < minZ) minZ = z;
+              if (z > maxZ) maxZ = z;
+            }
+            
+            const range = maxZ - minZ || 1;
+            
+            for (let i = 0; i < pos.count; i++) {
+              const z = pos.getZ(i);
+              const normZ = Math.max(0, Math.min(1, (z - minZ) / range));
+              const cIndex = i * 3;
+              
+              // Turbo/GIS Elevation Ramp
+              if (normZ < 0.25) {
+                colors[cIndex] = 0.08; colors[cIndex + 1] = 0.35; colors[cIndex + 2] = 0.8;
+              } else if (normZ < 0.5) {
+                colors[cIndex] = 0.08; colors[cIndex + 1] = 0.7; colors[cIndex + 2] = 0.45;
+              } else if (normZ < 0.75) {
+                colors[cIndex] = 0.85; colors[cIndex + 1] = 0.75; colors[cIndex + 2] = 0.15;
+              } else {
+                colors[cIndex] = 0.85; colors[cIndex + 1] = 0.25; colors[cIndex + 2] = 0.2;
+              }
+            }
+            child.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+          }
+          child.material.vertexColors = true;
+          // Temporarily store original map if not already stored
+          if (child.material.map && !child.userData.originalMap) {
+            child.userData.originalMap = child.material.map;
+          }
+          child.material.map = null;
+        } else {
+          child.material.vertexColors = false;
+          if (child.userData.originalMap) {
+            child.material.map = child.userData.originalMap;
+          }
+        }
+        
         child.material.wireframe = isWireframe;
         child.castShadow = true;
         child.receiveShadow = true;
+        child.material.needsUpdate = true;
       }
     });
     return clone;
-  }, [scene, isWireframe]);
+  }, [scene, isWireframe, displayMode, colorMode]);
 
   return (
     <primitive
       object={clonedScene}
-      scale={[1, verticalScale, 1]}
+      rotation={[-Math.PI / 2, 0, 0]}
+      scale={[1, 1, verticalScale]}
       onPointerDown={onPointerDown}
     />
   );
@@ -92,79 +178,130 @@ function ProceduralDemoTerrain({
   verticalScale,
   colorMode,
   onPointerDown,
+  displayMode,
 }: {
   isWireframe: boolean;
   verticalScale: number;
   colorMode: 'texture' | 'elevation';
   onPointerDown: (e: any) => void;
+  displayMode?: 'mesh' | 'points';
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
 
-  // Generate 128x128 grid with organic terrain heights
+  // Generate 256x256 grid with dramatic mountain terrain
   const { geometry, colors } = useMemo(() => {
-    const size = 32;
-    const segments = 128;
+    const size = 500;
+    const segments = 256;
     const geo = new THREE.PlaneGeometry(size, size, segments, segments);
     geo.rotateX(-Math.PI / 2);
 
     const pos = geo.attributes.position;
     const vertexColors = new Float32Array(pos.count * 3);
+    const halfSize = size / 2;
+
+    // First pass: compute heights
+    const heights = new Float32Array(pos.count);
+    let minH = Infinity;
+    let maxH = -Infinity;
 
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i);
       const z = pos.getZ(i);
+      const nx = x / halfSize; // normalize to -1..1
+      const nz = z / halfSize;
 
-      // Multi-octave natural terrain formula
-      const distFromCenter = Math.sqrt(x * x + z * z);
-      const h1 = Math.sin(x * 0.22) * Math.cos(z * 0.22) * 3.8;
-      const h2 = Math.sin(x * 0.55 + z * 0.35) * 1.6;
-      const h3 = Math.cos(x * 1.1 - z * 0.8) * 0.7;
-      const falloff = Math.max(0, 1 - Math.pow(distFromCenter / 17, 2));
+      // Multi-octave terrain with dramatic peaks
+      const d = Math.sqrt(nx * nx + nz * nz);
+      const falloff = Math.max(0, 1 - d * d * 0.7);
 
-      const y = (h1 + h2 + h3 + 3.2) * falloff;
-      pos.setY(i, y);
+      // Large mountain features
+      const h1 = Math.sin(x * 0.018) * Math.cos(z * 0.018) * 45;
+      const h2 = Math.sin(x * 0.025 + z * 0.015) * 30;
+      const h3 = Math.cos(x * 0.035 - z * 0.028) * 20;
+      // Medium ridges
+      const h4 = Math.sin(x * 0.06 + z * 0.04) * 12;
+      const h5 = Math.cos(x * 0.08 - z * 0.06) * 8;
+      // Fine detail
+      const h6 = Math.sin(x * 0.15 + z * 0.12) * 4;
+      const h7 = Math.cos(x * 0.22 - z * 0.18) * 2;
 
-      const normY = Math.max(0, Math.min(1, y / 7.5));
+      // Create several distinct peaks
+      const peak1 = Math.exp(-((nx - 0.3) * (nx - 0.3) + (nz + 0.2) * (nz + 0.2)) * 8) * 80;
+      const peak2 = Math.exp(-((nx + 0.25) * (nx + 0.25) + (nz - 0.3) * (nz - 0.3)) * 6) * 65;
+      const peak3 = Math.exp(-((nx + 0.1) * (nx + 0.1) + (nz + 0.35) * (nz + 0.35)) * 10) * 55;
+      const peak4 = Math.exp(-((nx - 0.35) * (nx - 0.35) + (nz - 0.35) * (nz - 0.35)) * 12) * 70;
+      const centralPeak = Math.exp(-(nx * nx + nz * nz) * 4) * 90;
+
+      const y = (h1 + h2 + h3 + h4 + h5 + h6 + h7 + peak1 + peak2 + peak3 + peak4 + centralPeak + 40) * falloff;
+      heights[i] = Math.max(0, y);
+      if (heights[i] < minH) minH = heights[i];
+      if (heights[i] > maxH) maxH = heights[i];
+    }
+
+    const range = maxH - minH || 1;
+
+    // Second pass: set heights and colors
+    for (let i = 0; i < pos.count; i++) {
+      pos.setY(i, heights[i]);
+      const normY = Math.max(0, Math.min(1, (heights[i] - minH) / range));
       const cIndex = i * 3;
 
       if (colorMode === 'elevation') {
-        // Subtle Turbo/GIS Elevation Ramp
-        if (normY < 0.25) {
-          vertexColors[cIndex] = 0.08;
-          vertexColors[cIndex + 1] = 0.35;
-          vertexColors[cIndex + 2] = 0.8;
-        } else if (normY < 0.5) {
-          vertexColors[cIndex] = 0.08;
-          vertexColors[cIndex + 1] = 0.7;
-          vertexColors[cIndex + 2] = 0.45;
-        } else if (normY < 0.75) {
-          vertexColors[cIndex] = 0.85;
-          vertexColors[cIndex + 1] = 0.75;
-          vertexColors[cIndex + 2] = 0.15;
+        // Smooth rainbow elevation ramp: deep blue → cyan → green → yellow → orange → red → white
+        let r: number, g: number, b: number;
+        if (normY < 0.1) {
+          // Deep blue (valleys/water)
+          const t = normY / 0.1;
+          r = 0.05; g = 0.1 + t * 0.25; b = 0.5 + t * 0.3;
+        } else if (normY < 0.25) {
+          // Blue to cyan
+          const t = (normY - 0.1) / 0.15;
+          r = 0.05; g = 0.35 + t * 0.4; b = 0.8 - t * 0.2;
+        } else if (normY < 0.4) {
+          // Cyan to green
+          const t = (normY - 0.25) / 0.15;
+          r = 0.05 + t * 0.1; g = 0.75 - t * 0.05; b = 0.6 - t * 0.45;
+        } else if (normY < 0.55) {
+          // Green to yellow
+          const t = (normY - 0.4) / 0.15;
+          r = 0.15 + t * 0.75; g = 0.7 + t * 0.15; b = 0.15 - t * 0.05;
+        } else if (normY < 0.7) {
+          // Yellow to orange
+          const t = (normY - 0.55) / 0.15;
+          r = 0.9 + t * 0.05; g = 0.85 - t * 0.35; b = 0.1;
+        } else if (normY < 0.85) {
+          // Orange to red
+          const t = (normY - 0.7) / 0.15;
+          r = 0.95 - t * 0.1; g = 0.5 - t * 0.3; b = 0.1 + t * 0.05;
         } else {
-          vertexColors[cIndex] = 0.85;
-          vertexColors[cIndex + 1] = 0.25;
-          vertexColors[cIndex + 2] = 0.2;
+          // Red to white (snow caps)
+          const t = (normY - 0.85) / 0.15;
+          r = 0.85 + t * 0.15; g = 0.2 + t * 0.7; b = 0.15 + t * 0.8;
         }
+        vertexColors[cIndex] = r;
+        vertexColors[cIndex + 1] = g;
+        vertexColors[cIndex + 2] = b;
       } else {
-        // Satellite Natural Palette: River valley -> Forest -> Rock -> Snow
-        if (normY < 0.2) {
-          vertexColors[cIndex] = 0.12;
-          vertexColors[cIndex + 1] = 0.28;
-          vertexColors[cIndex + 2] = 0.45;
-        } else if (normY < 0.52) {
-          vertexColors[cIndex] = 0.18;
-          vertexColors[cIndex + 1] = 0.48;
-          vertexColors[cIndex + 2] = 0.24;
-        } else if (normY < 0.8) {
-          vertexColors[cIndex] = 0.5;
-          vertexColors[cIndex + 1] = 0.42;
-          vertexColors[cIndex + 2] = 0.35;
+        // Natural satellite palette
+        let r: number, g: number, b: number;
+        if (normY < 0.15) {
+          r = 0.08; g = 0.22; b = 0.38;
+        } else if (normY < 0.4) {
+          const t = (normY - 0.15) / 0.25;
+          r = 0.08 + t * 0.12; g = 0.22 + t * 0.35; b = 0.38 - t * 0.2;
+        } else if (normY < 0.65) {
+          const t = (normY - 0.4) / 0.25;
+          r = 0.2 + t * 0.35; g = 0.57 - t * 0.15; b = 0.18 + t * 0.15;
+        } else if (normY < 0.85) {
+          const t = (normY - 0.65) / 0.2;
+          r = 0.55 - t * 0.1; g = 0.42 - t * 0.05; b = 0.33 + t * 0.02;
         } else {
-          vertexColors[cIndex] = 0.9;
-          vertexColors[cIndex + 1] = 0.94;
-          vertexColors[cIndex + 2] = 0.98;
+          const t = (normY - 0.85) / 0.15;
+          r = 0.45 + t * 0.5; g = 0.37 + t * 0.55; b = 0.35 + t * 0.6;
         }
+        vertexColors[cIndex] = r;
+        vertexColors[cIndex + 1] = g;
+        vertexColors[cIndex + 2] = b;
       }
     }
 
@@ -172,6 +309,22 @@ function ProceduralDemoTerrain({
     geo.computeVertexNormals();
     return { geometry: geo, colors: vertexColors };
   }, [colorMode]);
+
+  if (displayMode === 'points') {
+    return (
+      <points
+        ref={meshRef as any}
+        geometry={geometry}
+        scale={[1, verticalScale, 1]}
+      >
+        <pointsMaterial
+          size={0.2}
+          vertexColors
+          sizeAttenuation
+        />
+      </points>
+    );
+  }
 
   return (
     <mesh
@@ -193,92 +346,32 @@ function ProceduralDemoTerrain({
   );
 }
 
-/**
- * SceneFitter: Wraps children in a group, uses useFrame to poll for geometry,
- * then computes proper camera framing based on actual bounding box.
- * This solves the async GLB loading timing issue — the old AutoFit used
- * requestAnimationFrame which ran before the async GLB was loaded.
- */
-function SceneFitter({ children, onFit, onDebugInfo }: { children: React.ReactNode, onFit: (center: THREE.Vector3, radius: number) => void, onDebugInfo: (info: any) => void }) {
+function SceneFitter({ children, onFit }: { children: React.ReactNode, onFit: (center: THREE.Vector3, radius: number, minY: number, minX: number, maxX: number) => void }) {
   const groupRef = useRef<THREE.Group>(null);
-  const { camera, gl } = useThree();
   const fitted = useRef(false);
 
   useFrame(() => {
     if (fitted.current || !groupRef.current) return;
 
-    const box = new THREE.Box3().setFromObject(groupRef.current);
-    if (box.isEmpty()) return; // Model not loaded yet — keep polling
+    groupRef.current.updateMatrixWorld(true);
+    const box = new THREE.Box3();
+    box.setFromObject(groupRef.current);
+    if (box.isEmpty()) return; // Model not loaded yet
 
-    // Wait until the canvas has reasonable dimensions (not collapsed)
-    // to ensure correct aspect ratio for camera computation
-    if (gl.domElement.height < 200) return;
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    if (size.length() === 0) return; // Prevent empty bounding box
 
-    // Model is ready and canvas is properly sized — compute framing
     fitted.current = true;
 
     const center = new THREE.Vector3();
     box.getCenter(center);
-
-    const size = new THREE.Vector3();
-    box.getSize(size);
-
-    const sphere = new THREE.Sphere();
-    box.getBoundingSphere(sphere);
-    const radius = sphere.radius;
-
-    const perspCam = camera as THREE.PerspectiveCamera;
-    const fovRad = perspCam.fov * (Math.PI / 180);
-    const aspect = perspCam.aspect;
-
-    // Calculate the camera distance needed to fit the model in view.
-    // We need to consider both the vertical and horizontal FOV to ensure
-    // the entire model fits regardless of aspect ratio.
-    const fovH = 2 * Math.atan(Math.tan(fovRad / 2) * aspect);
     
-    // Distance needed so the bounding sphere fits in the vertical FOV
-    const distV = radius / Math.sin(fovRad / 2);
-    // Distance needed so the bounding sphere fits in the horizontal FOV
-    const distH = radius / Math.sin(fovH / 2);
-    // Take the larger distance to ensure full fit
-    let cameraDist = Math.max(distV, distH);
+    // Use the maximum horizontal dimension (width/depth)
+    // since the terrain is a flat plane and the sphere greatly overestimates the needed distance.
+    const maxHorizontalDim = Math.max(size.x, size.z);
 
-    // Apply padding so the terrain fills ~70% of viewport rather than 100%
-    cameraDist *= 1.15;
-
-    // Position camera at an isometric-like angle above and behind the center
-    // This gives a natural terrain viewing angle
-    const camX = center.x + cameraDist * 0.25;
-    const camY = center.y + cameraDist * 0.6;  // Y is up — elevate significantly
-    const camZ = center.z + cameraDist * 0.7;
-
-    perspCam.position.set(camX, camY, camZ);
-    perspCam.lookAt(center);
-
-    // Set near/far based on model dimensions to avoid clipping
-    perspCam.near = Math.max(0.1, cameraDist * 0.01);
-    perspCam.far = cameraDist * 10;
-    perspCam.updateProjectionMatrix();
-
-    const debugInfo = {
-      min: box.min.toArray(),
-      max: box.max.toArray(),
-      size: size.toArray(),
-      center: center.toArray(),
-      radius,
-      cameraPos: perspCam.position.toArray(),
-      cameraDist,
-      fov: fovRad,
-      aspect,
-      canvasWidth: gl.domElement.width,
-      canvasHeight: gl.domElement.height,
-      devicePixelRatio: window.devicePixelRatio,
-    };
-
-    console.log('[SceneFitter] Model detected and camera fitted:', debugInfo);
-
-    onDebugInfo(debugInfo);
-    onFit(center, radius);
+    onFit(center, maxHorizontalDim, box.min.y, box.min.x, box.max.x);
   });
 
   return (
@@ -295,18 +388,53 @@ function CameraController({
   flythroughSpeed,
   target,
   modelRadius,
+  resetTrigger,
 }: {
   isFlythrough: boolean;
   flythroughSpeed: number;
   target: [number, number, number];
   modelRadius: number;
+  resetTrigger: number;
 }) {
   const controlsRef = useRef<any>(null);
+  const { camera, gl } = useThree();
+  const [fittedTarget, setFittedTarget] = useState<string>("");
+  const [lastReset, setLastReset] = useState<number>(0);
 
-  // Compute dynamic distance limits based on model size
-  // modelRadius 0 means not yet measured — use generous defaults
-  const minDist = modelRadius > 0 ? modelRadius * 0.2 : 1;
-  const maxDist = modelRadius > 0 ? modelRadius * 8 : 50000;
+  const minDist = modelRadius > 0 ? modelRadius * 0.01 : 0.1;
+  const maxDist = modelRadius > 0 ? modelRadius * 6 : 50000;
+  const targetStr = target.join(',');
+
+  useEffect(() => {
+    if (modelRadius > 0 && (targetStr !== fittedTarget || resetTrigger !== lastReset) && controlsRef.current) {
+      const center = new THREE.Vector3(...target);
+      const perspCam = camera as THREE.PerspectiveCamera;
+      // Robust heuristic to fit a flat square plane into a 45-degree FOV viewport
+      // By tying it directly to the width (modelRadius) and using a 1.2 multiplier,
+      // it reliably fills 65-80% of the screen regardless of the aspect ratio.
+      const cameraDist = modelRadius * 1.2;
+
+      // Elevated perspective, slightly in front
+      const dir = new THREE.Vector3(0, 1.2, 1.5).normalize();
+      const camPos = center.clone().add(dir.multiplyScalar(cameraDist));
+
+      perspCam.position.copy(camPos);
+      perspCam.lookAt(center);
+      perspCam.near = Math.max(0.001, cameraDist * 0.01);
+      perspCam.position.copy(camPos);
+      perspCam.lookAt(center);
+      perspCam.updateProjectionMatrix();
+
+      if (controlsRef.current) {
+        controlsRef.current.target.copy(center);
+        controlsRef.current.update();
+      }
+
+      
+      setFittedTarget(targetStr);
+      setLastReset(resetTrigger);
+    }
+  }, [targetStr, modelRadius, camera, gl.domElement, fittedTarget, resetTrigger, lastReset]);
 
   useFrame(() => {
     if (isFlythrough && controlsRef.current) {
@@ -331,7 +459,7 @@ function CameraController({
   );
 }
 
-export const TerrainViewer: React.FC<TerrainViewerProps> = ({
+export const TerrainViewer = forwardRef<TerrainViewerRef, TerrainViewerProps>(({
   glbUrl,
   htmlUrl,
   isRealData,
@@ -344,15 +472,28 @@ export const TerrainViewer: React.FC<TerrainViewerProps> = ({
   flythroughSpeed,
   onInspectPoint,
   inspectedPoint,
-}) => {
+  displayMode,
+}, ref) => {
   const [hasGlbError, setHasGlbError] = useState(false);
   const [target, setTarget] = useState<[number, number, number]>([0, 0, 0]);
-  const [debugData, setDebugData] = useState<any>(null);
   const [modelRadius, setModelRadius] = useState(0);
+  const [modelMinY, setModelMinY] = useState(0);
+  const [boxMinX, setBoxMinX] = useState(0);
+  const [boxMaxX, setBoxMaxX] = useState(0);
+  const [resetTrigger, setResetTrigger] = useState(0);
 
-  const handleFit = React.useCallback((center: THREE.Vector3, radius: number) => {
+  useImperativeHandle(ref, () => ({
+    resetCamera: () => {
+      setResetTrigger((prev) => prev + 1);
+    }
+  }));
+
+  const handleFit = React.useCallback((center: THREE.Vector3, radius: number, minY: number, minX: number, maxX: number) => {
     setTarget([center.x, center.y, center.z]);
     setModelRadius(radius);
+    setModelMinY(minY);
+    setBoxMinX(minX);
+    setBoxMaxX(maxX);
   }, []);
 
   const handlePointerDown = (e: any) => {
@@ -376,32 +517,23 @@ export const TerrainViewer: React.FC<TerrainViewerProps> = ({
   };
 
   return (
-    <div className="relative w-full h-[600px] lg:h-[720px] xl:h-[780px] rounded-3xl overflow-hidden border border-geo-border bg-geo-bg shadow-geo-elevated">
-      {debugData && (
-        <div className="absolute top-16 left-4 z-50 p-4 bg-black/80 text-green-400 font-mono text-[10px] whitespace-pre rounded border border-green-500/30 max-h-[80%] overflow-y-auto pointer-events-none">
-          <div>MODEL SIZE:</div>
-          <div>X = {debugData.size[0].toFixed(2)}</div>
-          <div>Y = {debugData.size[1].toFixed(2)}</div>
-          <div>Z = {debugData.size[2].toFixed(2)}</div>
-          <div className="mt-2">MODEL CENTER:</div>
-          <div>X = {debugData.center[0].toFixed(2)}</div>
-          <div>Y = {debugData.center[1].toFixed(2)}</div>
-          <div>Z = {debugData.center[2].toFixed(2)}</div>
-          <div className="mt-2">CAMERA:</div>
-          <div>position = {debugData.cameraPos.map((v:any) => v.toFixed(2)).join(', ')}</div>
-          <div>FOV = {(debugData.fov * 180 / Math.PI).toFixed(1)}°</div>
-          <div>aspect = {debugData.aspect.toFixed(2)}</div>
-          <div>dist = {debugData.cameraDist?.toFixed(1)}</div>
-          <div className="mt-2">CANVAS:</div>
-          <div>width = {debugData.canvasWidth}</div>
-          <div>height = {debugData.canvasHeight}</div>
-          <div>dpr = {debugData.devicePixelRatio}</div>
-          <div className="mt-2">RADIUS: {debugData.radius?.toFixed(1)}</div>
-        </div>
-      )}
+    <div className="relative w-full h-[550px] lg:h-[700px] rounded-3xl overflow-hidden border border-geo-border bg-geo-bg shadow-geo-elevated">
+      
+      {/* 3D Header Overlay */}
+      <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-geo-bg/80 to-transparent z-10 pointer-events-none" />
+      <div className="absolute top-4 left-6 z-20 pointer-events-none">
+        <h3 className="text-lg font-bold font-mono tracking-wider text-white uppercase drop-shadow-md">
+          Interactive 3D Terrain
+        </h3>
+      </div>
+
       {/* Subtle Technical Terrain Status Badge */}
       <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
-        {isRealData && glbUrl && !hasGlbError ? (
+        {hasGlbError ? (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-geo-surface/90 border border-red-500/40 text-red-400 font-mono text-xs shadow-sm backdrop-blur-md">
+            <span className="font-semibold">⚠ TERRAIN LOAD ERROR</span>
+          </div>
+        ) : isRealData && glbUrl ? (
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-geo-surface/90 border border-emerald-500/40 text-emerald-300 font-mono text-xs shadow-sm backdrop-blur-md">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <span className="font-semibold">GENERATED TERRAIN</span>
@@ -409,44 +541,10 @@ export const TerrainViewer: React.FC<TerrainViewerProps> = ({
         ) : (
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-geo-surface/90 border border-geo-border text-geo-text font-mono text-xs shadow-sm backdrop-blur-md">
             <span className="w-1.5 h-1.5 rounded-full bg-geo-cyan" />
-            <span className="font-semibold">DEMO TERRAIN</span>
-            <span className="text-[11px] text-geo-muted">(Procedural Surface)</span>
+            <span className="font-semibold">TERRAIN READY</span>
           </div>
         )}
       </div>
-
-      {/* Point Inspector Marker Overlay */}
-      {inspectedPoint && (
-        <div className="absolute bottom-4 left-4 z-20 p-3.5 rounded-xl bg-geo-surface/95 border border-geo-border backdrop-blur-md font-mono text-xs shadow-geo-card max-w-xs animate-in fade-in">
-          <div className="flex items-center justify-between border-b border-geo-border/80 pb-2 mb-2">
-            <div className="flex items-center gap-1.5 text-geo-cyan font-bold">
-              <MapPin className="w-3.5 h-3.5" />
-              <span>POINT INSPECTION</span>
-            </div>
-            <span className="text-[10px] px-2 py-0.5 rounded bg-geo-bg border border-geo-border text-geo-muted">
-              {inspectedPoint.isDemoValue ? 'DEMO VALUE' : 'REAL DSM'}
-            </span>
-          </div>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
-            <div>
-              <span className="text-geo-muted">X: </span>
-              <span className="text-geo-text font-bold">{inspectedPoint.x} m</span>
-            </div>
-            <div>
-              <span className="text-geo-muted">Y: </span>
-              <span className="text-geo-text font-bold">{inspectedPoint.y} m</span>
-            </div>
-            <div>
-              <span className="text-geo-muted">Elevation: </span>
-              <span className="text-geo-cyan font-bold">{inspectedPoint.elevation} m</span>
-            </div>
-            <div>
-              <span className="text-geo-muted">Slope: </span>
-              <span className="text-amber-300 font-bold">{inspectedPoint.slope}°</span>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Fallback standalone HTML mode */}
       {!glbUrl && htmlUrl ? (
@@ -487,13 +585,13 @@ export const TerrainViewer: React.FC<TerrainViewerProps> = ({
 
           {showGrid && (
             <gridHelper
-              args={[600, 30, '#06b6d4', '#1e314b']}
-              position={[255, -0.5, 255]}
+              args={[modelRadius > 0 ? (boxMaxX - boxMinX) * 1.75 : 100, 80, '#06b6d4', '#1e314b']}
+              position={[target[0], modelRadius > 0 ? modelMinY - (modelRadius * 0.02) : 0, target[2]]}
             />
           )}
 
           <Suspense fallback={null}>
-            <SceneFitter onFit={handleFit} onDebugInfo={setDebugData}>
+            <SceneFitter onFit={handleFit}>
               {isRealData && glbUrl && !hasGlbError ? (
                 <ModelErrorBoundary
                   onError={() => setHasGlbError(true)}
@@ -503,6 +601,7 @@ export const TerrainViewer: React.FC<TerrainViewerProps> = ({
                       verticalScale={verticalScale}
                       colorMode={colorMode}
                       onPointerDown={handlePointerDown}
+                      displayMode={displayMode}
                     />
                   }
                 >
@@ -511,6 +610,8 @@ export const TerrainViewer: React.FC<TerrainViewerProps> = ({
                     isWireframe={isWireframe}
                     verticalScale={verticalScale}
                     onPointerDown={handlePointerDown}
+                    displayMode={displayMode}
+                    colorMode={colorMode}
                   />
                 </ModelErrorBoundary>
               ) : (
@@ -519,6 +620,7 @@ export const TerrainViewer: React.FC<TerrainViewerProps> = ({
                   verticalScale={verticalScale}
                   colorMode={colorMode}
                   onPointerDown={handlePointerDown}
+                  displayMode={displayMode}
                 />
               )}
             </SceneFitter>
@@ -529,9 +631,10 @@ export const TerrainViewer: React.FC<TerrainViewerProps> = ({
             flythroughSpeed={flythroughSpeed}
             target={target}
             modelRadius={modelRadius}
+            resetTrigger={resetTrigger}
           />
         </Canvas>
       )}
     </div>
   );
-};
+});

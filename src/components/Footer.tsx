@@ -19,9 +19,7 @@ export const Footer: React.FC = () => {
                 <Layers className="w-4 h-4" />
               </div>
               <span className="font-bold text-sm text-geo-text">DepthWizard</span>
-              <span className="text-[10px] px-2.5 py-1 rounded-full bg-geo-surface/80 text-geo-cyan border border-geo-border/60">
-                SIH 2026 • PS 26175
-              </span>
+
             </div>
             <p className="text-geo-subtle">
               Single-View Height Estimation & 3D Flythrough

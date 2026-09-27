@@ -51,12 +51,13 @@ export const Dashboard: React.FC = () => {
   const [isWireframe, setIsWireframe] = useState(false);
   const [showGrid, setShowGrid] = useState(true);
   const [verticalScale, setVerticalScale] = useState(1.2);
-  const [colorMode, setColorMode] = useState<'texture' | 'elevation'>('texture');
+  const [colorMode, setColorMode] = useState<'texture' | 'elevation'>('elevation');
   const [sunIntensity, setSunIntensity] = useState(1.0);
   const [isFlythrough, setIsFlythrough] = useState(false);
   const [flythroughSpeed, setFlythroughSpeed] = useState(1.0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [inspectedPoint, setInspectedPoint] = useState<TerrainPointInspection | null>(null);
+  const [displayMode, setDisplayMode] = useState<'mesh' | 'points'>('mesh');
 
   // Elevation Analysis Metadata State
   const [metadata, setMetadata] = useState<TerrainMetadata>(DEMO_TERRAIN_METADATA);
@@ -216,6 +217,21 @@ export const Dashboard: React.FC = () => {
     setIsProcessing(false);
     setSystemStatus('TERRAIN READY');
     setSelectedStage('3d');
+
+    // Update outputs to simulate processing the uploaded image
+    setOutputs((prev) => ({
+      ...prev,
+      originalImage: previewUrl, // Use the user's uploaded image
+      terrainGlb: '/outputs/terrain.glb', // Fallback to demo 3D model
+      terrainHtml: '/outputs/terrain.html',
+      depthImage: prev.depthImage || generateSyntheticPreviewUrl('depth'),
+      dsmImage: prev.dsmImage || generateSyntheticPreviewUrl('dsm'),
+    }));
+
+    // Auto-scroll to the terrain viewer so the user doesn't miss it
+    setTimeout(() => {
+      document.getElementById('terrain-viewer')?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
   };
 
   const handleResetCamera = () => {
@@ -224,7 +240,7 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleToggleFullscreen = () => {
-    const el = document.getElementById('demo-workspace');
+    const el = document.getElementById('terrain-viewer');
     if (!el) return;
     if (!document.fullscreenElement) {
       el.requestFullscreen().catch(() => {});
@@ -300,6 +316,8 @@ export const Dashboard: React.FC = () => {
         selectedStage={selectedStage}
         setSelectedStage={setSelectedStage}
         metadata={metadata}
+        displayMode={displayMode}
+        setDisplayMode={setDisplayMode}
       />
 
       {/* Footer */}
